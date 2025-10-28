@@ -35,10 +35,19 @@ jobs:
       - name: Compile firmware for ${{ matrix.firmware }}
         run: |
           SKETCH_DIR="Firmware/${{ matrix.firmware }}"
+          SKETCH_FILE="${SKETCH_DIR}/MOD2_${{ matrix.firmware }}.ino"
+
+          # Verify sketch file exists
+          if [ ! -f "${SKETCH_FILE}" ]; then
+            echo "Error: Sketch file not found: ${SKETCH_FILE}"
+            ls -la "${SKETCH_DIR}"
+            exit 1
+          fi
 
           # Compile for RP2350 (Raspberry Pi Pico 2)
           # Board: Raspberry Pi Pico 2 (rp2350)
-          arduino-cli compile -v -b rp2040:rp2040:rpipico2 "${SKETCH_DIR}" -e --output-dir=./build
+          # Compile the specific .ino file
+          arduino-cli compile -v -b rp2040:rp2040:rpipico2 "${SKETCH_FILE}" -e --output-dir=./build
 
           # Create release directory
           mkdir -p ./release
