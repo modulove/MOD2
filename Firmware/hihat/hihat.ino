@@ -1,6 +1,8 @@
 /*
-HAGIWO MOD2 HiHat Ver1.0
+HAGIWO MOD2 HiHat Ver1.1 - With LED envelope display
 white and blue noise base HiHat.
+LED brightness follows the envelope shape when triggered.
+Button has dual function: short press for manual trigger, long press (>500ms) to toggle noise type.
 
 --Pin assign---
 POT1     A0       Decay time
@@ -10,8 +12,8 @@ IN1      GPIO7    Trig in
 IN2      GPIO0    Accent (Volume decreases when HIGH)
 CV       A2       Shared with POT3
 OUT      GPIO1    Audio output
-BUTTON   GPIO6    Change noise source (white or blue)
-LED      GPIO5    Trig in
+BUTTON   GPIO6    Manual Trig (short) / Noise select (long press)
+LED      GPIO5    Envelope LED output (PWM)
 EEPROM    N/A
 
 
@@ -29,18 +31,17 @@ Although the code has been tested, it may still exhibit unstable behavior or con
 #include <math.h>
 
 /********************  === Core constants ===  *******************************************/
-const float    SYS_CLOCK = 150000000.0f;      // 150 MHz
-const float    AUDIO_FS  = SYS_CLOCK / 4096;  // ≒36.6 kHz
+const float    SYS_CLOCK = 150000000.0f;      // 150 MHz
+const float    AUDIO_FS  = SYS_CLOCK / 4096;  // ≒36.6 kHz
 const uint32_t TABLE_SZ  = 30000;             // Length of noise table
 
 const float    PWM_FS    = 1023.0f;           // 10‑bit full‑scale
 const float    PWM_MID   = PWM_FS / 2.0f;     // 511
 const float    AMP_SCALE = 3.5f;              // Base gain
-const float    MASTER_ATTEN = 0.8f;           // −1.9 dB master attenuation
+const float    MASTER_ATTEN = 0.8f;           // −1.9 dB master attenuation
 
-const uint16_t FADE_IN_SMP  = 73;             // ≒2 ms
-const uint16_t FADE_OUT_SMP = 40;             // ≒1 ms
-const uint32_t LED_DURATION_US = 10000;       // LED on‑time 10 ms
+const uint16_t FADE_IN_SMP  = 73;             // ≒2 ms
+const uint16_t FADE_OUT_SMP = 40;             // ≒1 ms
 
 /********************  === ADC ===  ******************************************************/
 const uint8_t  ADC_RES_BITS = 10;
@@ -49,6 +50,7 @@ const uint16_t ADC_MAX_VAL  = (1 << ADC_RES_BITS) - 1;
 /********************  === Buffers ===  **************************************************/
 float   noiseTbl[TABLE_SZ];     // Noise table
 int16_t outHH[TABLE_SZ];        // Output waveform buffer
+uint16_t envTbl[TABLE_SZ];      // Envelope values for LED brightness
 
 /********************  === Playback state / control ===  *********************************/
 volatile bool     playingHH   = false;
@@ -65,9 +67,14 @@ volatile float volFactor       = 1.0f;
 volatile uint8_t noiseMode      = 0;   // 0:Blue / 1:White
 volatile bool    reqNoiseUpdate = false;
 
-volatile uint32_t ledOffUs = 0;
+// --- Button timing for dual function ---
+volatile uint32_t buttonPressTime = 0;
+volatile bool     buttonPressed = false;
+volatile uint32_t lastButtonChange = 0;
+const uint32_t    LONG_PRESS_MS = 500;  // 500ms for long press
+const uint32_t    DEBOUNCE_MS = 20;     // 20ms debounce time
 
-uint sliceAudio, sliceIRQ;
+uint sliceAudio, sliceIRQ, sliceLED;
 
 /********************  === Helpers ===  **************************************************/
 inline uint16_t readADC(uint8_t pin){ return analogRead(pin); }
@@ -118,6 +125,10 @@ void buildVoice(int16_t* dst,float decayB,float curve,float fcC){
     else if(i>TABLE_SZ-FADE_OUT_SMP-1) fade = (TABLE_SZ-i-1)/float(FADE_OUT_SMP); // Fade‑out
     y0 *= fade;
 
+    // Store envelope value for LED (env * fade gives us the actual envelope shape)
+    float envValue = env * fade;
+    envTbl[i] = uint16_t(envValue * PWM_FS);
+
     dst[i] = int16_t(constrain(y0,-1.0f,1.0f)*PWM_MID*MASTER_ATTEN);
     env *= expK;
   }
@@ -126,14 +137,28 @@ void buildVoice(int16_t* dst,float decayB,float curve,float fcC){
 /********************  === PWM IRQ ===  **************************************************/
 void on_pwm_wrap(){
   pwm_clear_irq(sliceIRQ);
-  int32_t mix = 0;
-  if(playingHH){
-    mix += outHH[idxHH++];
-    if(idxHH>=TABLE_SZ){ playingHH=false; idxHH=0; }
+  
+  if(!playingHH){
+    pwm_set_chan_level(sliceAudio,PWM_CHAN_B,uint16_t(PWM_MID));
+    pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0);  // LED off
+    return;
   }
+  
+  // Audio output
+  int32_t mix = outHH[idxHH];
   int32_t val = PWM_MID + int32_t(mix*AMP_SCALE*volFactor);
   if(val<0) val=0; else if(val>1023) val=1023;
   pwm_set_chan_level(sliceAudio,PWM_CHAN_B,uint16_t(val));
+  
+  // LED brightness based on envelope
+  pwm_set_chan_level(sliceLED, PWM_CHAN_B, envTbl[idxHH]);
+  
+  idxHH++;
+  if(idxHH>=TABLE_SZ){ 
+    playingHH=false; 
+    idxHH=0; 
+    pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0);  // Ensure LED is off
+  }
 }
 
 /********************  === ISRs ===  *****************************************************/
@@ -141,13 +166,35 @@ void on_pwm_wrap(){
 void triggerISR(){
   volFactor = digitalRead(0) ? 0.5f : 1.0f; // Volume switch
   reqTrig = true;
-  digitalWrite(5,HIGH);
-  ledOffUs = micros() + LED_DURATION_US;
 }
-// Noise‑select button ISR
-void noiseButtonISR(){
-  noiseMode ^= 1;           // Toggle 0 ↔ 1
-  reqNoiseUpdate = true;
+
+// Button state change ISR (GPIO6)
+void buttonISR(){
+  uint32_t now = millis();
+  if(now - lastButtonChange < DEBOUNCE_MS) return;  // Debounce
+  lastButtonChange = now;
+  
+  if(digitalRead(6) == LOW){
+    // Button pressed (falling edge)
+    buttonPressed = true;
+    buttonPressTime = now;
+  } else {
+    // Button released (rising edge)
+    if(buttonPressed){
+      buttonPressed = false;
+      uint32_t pressDuration = now - buttonPressTime;
+      
+      if(pressDuration < LONG_PRESS_MS){
+        // Short press - trigger sound
+        volFactor = digitalRead(0) ? 0.5f : 1.0f;
+        reqTrig = true;
+      } else {
+        // Long press - toggle noise mode
+        noiseMode ^= 1;
+        reqNoiseUpdate = true;
+      }
+    }
+  }
 }
 
 /********************  === SETUP ===  ****************************************************/
@@ -156,23 +203,50 @@ void setup(){
   randomSeed(analogRead(26));
   updateNoiseTable();
 
-  pinMode(1,OUTPUT); gpio_set_function(1,GPIO_FUNC_PWM); sliceAudio=pwm_gpio_to_slice_num(1);
-  pinMode(2,OUTPUT); gpio_set_function(2,GPIO_FUNC_PWM); sliceIRQ  =pwm_gpio_to_slice_num(2);
-  pwm_set_clkdiv(sliceAudio,1); pwm_set_wrap(sliceAudio,1023); pwm_set_enabled(sliceAudio,true);
-  pwm_set_clkdiv(sliceIRQ,1);   pwm_set_wrap(sliceIRQ,4095);  pwm_set_enabled(sliceIRQ,true);
-  pwm_clear_irq(sliceIRQ); pwm_set_irq_enabled(sliceIRQ,true);
-  irq_set_exclusive_handler(PWM_IRQ_WRAP,on_pwm_wrap); irq_set_enabled(PWM_IRQ_WRAP,true);
+  // Audio PWM output (GPIO1)
+  pinMode(1,OUTPUT); 
+  gpio_set_function(1,GPIO_FUNC_PWM); 
+  sliceAudio=pwm_gpio_to_slice_num(1);
+  
+  // LED PWM output (GPIO5)
+  pinMode(5,OUTPUT); 
+  gpio_set_function(5,GPIO_FUNC_PWM); 
+  sliceLED=pwm_gpio_to_slice_num(5);    // GPIO5 uses slice 2, channel B
+  
+  // Timer PWM (GPIO2)
+  pinMode(2,OUTPUT); 
+  gpio_set_function(2,GPIO_FUNC_PWM); 
+  sliceIRQ=pwm_gpio_to_slice_num(2);
+  
+  // Configure audio PWM
+  pwm_set_clkdiv(sliceAudio,1); 
+  pwm_set_wrap(sliceAudio,1023); 
+  pwm_set_enabled(sliceAudio,true);
+  
+  // Configure LED PWM
+  pwm_set_clkdiv(sliceLED,1); 
+  pwm_set_wrap(sliceLED,1023); 
+  pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0); // Start with LED off
+  pwm_set_enabled(sliceLED,true);
+  
+  // Configure timer PWM
+  pwm_set_clkdiv(sliceIRQ,1);   
+  pwm_set_wrap(sliceIRQ,4095);  
+  pwm_set_enabled(sliceIRQ,true);
+  pwm_clear_irq(sliceIRQ); 
+  pwm_set_irq_enabled(sliceIRQ,true);
+  irq_set_exclusive_handler(PWM_IRQ_WRAP,on_pwm_wrap); 
+  irq_set_enabled(PWM_IRQ_WRAP,true);
 
   pinMode(0,INPUT);
-  pinMode(5,OUTPUT); digitalWrite(5,LOW);
-  pinMode(7,INPUT); attachInterrupt(digitalPinToInterrupt(7),triggerISR,RISING);
-  pinMode(6,INPUT_PULLUP); attachInterrupt(digitalPinToInterrupt(6),noiseButtonISR,FALLING);
+  pinMode(7,INPUT); 
+  attachInterrupt(digitalPinToInterrupt(7),triggerISR,RISING);
+  pinMode(6,INPUT_PULLUP); 
+  attachInterrupt(digitalPinToInterrupt(6),buttonISR,CHANGE);  // Detect both press and release
 }
 
 /********************  === LOOP ===  *****************************************************/
 void loop(){
-  if(ledOffUs && micros() >= ledOffUs){ digitalWrite(5,LOW); ledOffUs=0; }
-
   float norm0 = 1.0f - (readADC(A0)/float(ADC_MAX_VAL));
   float norm1 = 1.0f - (readADC(A1)/float(ADC_MAX_VAL));
   float norm2 = 1.0f - (readADC(A2)/float(ADC_MAX_VAL));
@@ -188,5 +262,5 @@ void loop(){
     buildVoice(outHH,decayBase,decayCurve,fc);
     idxHH=0; playingHH=true;
   }
-  delayMicroseconds(500);   // ≒1 kHz main loop rate
+  delayMicroseconds(500);   // ≒1 kHz main loop rate
 }
