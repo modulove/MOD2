@@ -1,22 +1,23 @@
 /*
-HAGIWO MOD2 Clap Ver1.0
+HAGIWO MOD2 Clap Ver1.1 - With LED envelope display
 
   • TR‑808‑style digital hand‑clap: two short gated noise bursts followed by an exponential noise tail
+  • LED brightness follows the envelope shape (bursts + decay)
   • 3 potentiometers → live control of BPF Q, decay time and BPF centre frequency
-  • Accent input (GPIO0): HIGH = −6 dB (0.5× amplitude)
-  • Fixed 3‑burst structure: two 4 ms noise gates spaced 15 ms apart + exponential tail (≤0.60 s)
-  • One‑shot voice buffer: 22 000 samples @36.6 kHz (≈0.60 s) held in RAM
+  • Accent input (GPIO0): HIGH = −6 dB (0.5× amplitude)
+  • Fixed 3‑burst structure: two 4 ms noise gates spaced 15 ms apart + exponential tail (≤0.60 s)
+  • One‑shot voice buffer: 22 000 samples @36.6 kHz (≈0.60 s) held in RAM
 
   --Pin assign---
-POT1     A0       BPF Q (0.5 – 4.0)   — left = wide, right = narrow
-POT2     A1       Decay time (20 – 200 ms)
-POT3     A2       BPF Fc (50 Hz – 8 kHz)
-IN1      GPIO7    External trigger (rising‑edge)
-IN2      GPIO0    Accent — HIGH = ‑6 dB (0.5×)
+POT1     A0       BPF Q (0.5 – 4.0)   — left = wide, right = narrow
+POT2     A1       Decay time (20 – 200 ms)
+POT3     A2       BPF Fc (50 Hz – 8 kHz)
+IN1      GPIO7    External trigger (rising‑edge)
+IN2      GPIO0    Accent — HIGH = ‑6 dB (0.5×)
 CV       A2       Shared with POT3
-BUTTON   GPIO6    Manual trigger (active‑low, pull‑up)
+BUTTON   GPIO6    Manual trigger (active‑low, pull‑up)
 OUT      GPIO1    10‑bit PWM audio output
-LED      GPIO5    Trigger LED indicator
+LED      GPIO5    Envelope LED output (PWM)
 EEPROM    N/A
 
 CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
@@ -33,9 +34,9 @@ Although the code has been tested, it may still exhibit unstable behavior or con
 #include <math.h>               // mathf / sin / cos etc.
 
 /**********************  === Core constants ===  *****************************/
-const float    SYS_CLOCK = 150000000.0f;      // RP2040 system clock (150 MHz)
-const float    AUDIO_FS  = SYS_CLOCK / 4096.0f; // ≈36.6 kHz playback ISR rate
-const uint32_t TABLE_SZ  = 22000;             // 22 k‑sample buffer ≈0.60 s
+const float    SYS_CLOCK = 150000000.0f;      // RP2040 system clock (150 MHz)
+const float    AUDIO_FS  = SYS_CLOCK / 4096.0f; // ≈36.6 kHz playback ISR rate
+const uint32_t TABLE_SZ  = 22000;             // 22 k‑sample buffer ≈0.60 s
 
 // PWM output (10‑bit, centre‑aligned)
 const float    PWM_FS   = 1023.0f;            // 10‑bit full‑scale value
@@ -43,14 +44,11 @@ const float    PWM_MID  = PWM_FS / 2.0f;      // Mid‑scale (silence)
 
 // Global output gain
 const float    AMP_SCALE    = 3.5f;           // Post‑mix gain factor
-const float    MASTER_ATTEN = 0.8f;           // −1.9 dB master attenuation
+const float    MASTER_ATTEN = 0.8f;           // −1.9 dB master attenuation
 
 // Anti‑click fades (in samples)
-const uint16_t FADE_IN_SMP  = 70;             // 2 ms @36.6 kHz
-const uint16_t FADE_OUT_SMP = 40;             // 1 ms @36.6 kHz
-
-// LED pulse length
-const uint32_t LED_DURATION_US = 10000;       // 10 ms
+const uint16_t FADE_IN_SMP  = 70;             // 2 ms @36.6 kHz
+const uint16_t FADE_OUT_SMP = 40;             // 1 ms @36.6 kHz
 
 /**********************  === ADC setup ===  **********************************/
 const uint8_t  ADC_RES_BITS = 10;             // 10‑bit ADC resolution
@@ -59,20 +57,20 @@ const uint16_t ADC_MAX_VAL  = (1 << ADC_RES_BITS) - 1;
 /**********************  === Buffers / state ===  ****************************/
 float   noiseTbl[TABLE_SZ];          // Pre‑generated white‑noise table
 int16_t outClap[TABLE_SZ];           // Rendered voice buffer (int16 to save RAM)
+uint16_t envTbl[TABLE_SZ];           // Envelope values for LED brightness
 
 volatile bool     playingClap = false; // Playback state flag
 volatile uint32_t idxClap     = 0;     // Current playback index
 
-volatile float    decayMs     = 110.0f; // 20‑200 ms decay time (pot A1)
-volatile float    bpfQ        = 2.25f;   // 0.5‑4.0 BPF Q factor (pot A0)
-volatile float    fc          = 1500.0f; // 50‑8000 Hz centre freq (pot A2)
+volatile float    decayMs     = 110.0f; // 20‑200 ms decay time (pot A1)
+volatile float    bpfQ        = 2.25f;   // 0.5‑4.0 BPF Q factor (pot A0)
+volatile float    fc          = 1500.0f; // 50‑8000 Hz centre freq (pot A2)
 const   float     DECAY_CURVE = 2.0f;    // Fixed envelope curvature
 
 volatile float    volFactor   = 1.0f;    // Accent volume (1.0 normal / 0.5 soft)
 volatile bool     reqTrig     = false;   // Trigger request signalled by ISRs
-volatile uint32_t ledOffUs    = 0;       // LED auto‑off timestamp
 
-uint sliceAudio, sliceIRQ;               // PWM slice indices
+uint sliceAudio, sliceIRQ, sliceLED;     // PWM slice indices
 
 /**********************  === Helper ===  *************************************/
 inline uint16_t readADC(uint8_t pin){ return analogRead(pin); } // Convenience wrapper
@@ -84,7 +82,7 @@ void generateWhiteNoise(){               // Fill table with −1…+1 white nois
 }
 
 /**********************  === Voice builder ===  ******************************/
-// Render full 22 k‑sample clap into outClap[] using current parameters
+// Render full 22 k‑sample clap into outClap[] using current parameters
 void buildClap(int16_t* dst, float decay_ms, float fcC, float qVal){
   /* --- 2‑pole band‑pass filter coefficients (Cookbook) --- */
   const float Q = qVal;
@@ -98,8 +96,8 @@ void buildClap(int16_t* dst, float decay_ms, float fcC, float qVal){
 
   /* --- Burst & envelope timing --- */
   const uint8_t  BURSTS = 3;                                 // 3 bursts fixed
-  const uint32_t PULSE_INTERVAL = uint32_t(0.015f * AUDIO_FS);//15 ms gap
-  const uint32_t BURST_LEN      = uint32_t(0.004f * AUDIO_FS);//4 ms gate
+  const uint32_t PULSE_INTERVAL = uint32_t(0.015f * AUDIO_FS);//15 ms gap
+  const uint32_t BURST_LEN      = uint32_t(0.004f * AUDIO_FS);//4 ms gate
 
   const float tau_s = decay_ms / 1000.0f;                    // Decay constant (s)
   const float expK  = expf(-1.0f / (tau_s * AUDIO_FS));      // Per‑sample factor
@@ -118,7 +116,7 @@ void buildClap(int16_t* dst, float decay_ms, float fcC, float qVal){
   for(uint32_t i=0;i<TABLE_SZ;++i){
     /* Start new burst if scheduled */
     if(i == nextOn && current < BURSTS){
-      if(current < BURSTS - 1){            // First two bursts → 4 ms gate
+      if(current < BURSTS - 1){            // First two bursts → 4 ms gate
         gateOn  = true;
         nextOff = i + BURST_LEN;
       }else{                               // Final burst → exponential tail
@@ -129,7 +127,7 @@ void buildClap(int16_t* dst, float decay_ms, float fcC, float qVal){
       nextOn += PULSE_INTERVAL;            // Schedule next start
     }
 
-    /* Gate ends after 4 ms */
+    /* Gate ends after 4 ms */
     if(gateOn && i >= nextOff) gateOn = false;
 
     /* Current envelope value */
@@ -149,27 +147,40 @@ void buildClap(int16_t* dst, float decay_ms, float fcC, float qVal){
     if(i < FADE_IN_SMP)                           fade = i / float(FADE_IN_SMP);
     else if(i > TABLE_SZ - FADE_OUT_SMP - 1)      fade = (TABLE_SZ - i - 1) / float(FADE_OUT_SMP);
     y0 *= fade;
+    
+    /* Store LED envelope value (curEnv already includes burst/tail logic) */
+    float ledEnv = curEnv * fade;  // Apply fade to LED too
+    envTbl[i] = uint16_t(ledEnv * PWM_FS);
 
     dst[i] = int16_t(constrain(y0, -1.0f, 1.0f) * PWM_MID * MASTER_ATTEN); // Store sample
   }
 }
 
 /**********************  === PWM ISR ===  *************************************/
-void on_pwm_wrap(){                      // Called at ≈36.6 kHz from sliceIRQ
+void on_pwm_wrap(){                      // Called at ≈36.6 kHz from sliceIRQ
   pwm_clear_irq(sliceIRQ);               // Clear IRQ flag
 
-  int32_t mix = 0;
-  if(playingClap){                       // Mix current clap sample
-    mix += outClap[idxClap++];
-    if(idxClap >= TABLE_SZ){             // End of buffer → stop playback
-      playingClap = false;
-      idxClap     = 0;
-    }
+  if(!playingClap){
+    pwm_set_chan_level(sliceAudio, PWM_CHAN_B, uint16_t(PWM_MID));
+    pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0);  // LED off
+    return;
   }
-
+  
+  // Audio output
+  int32_t mix = outClap[idxClap];
   int32_t val = PWM_MID + int32_t(mix * AMP_SCALE); // Apply master gain
   if(val < 0) val = 0; else if(val > 1023) val = 1023; // Clip to 10‑bit
   pwm_set_chan_level(sliceAudio, PWM_CHAN_B, uint16_t(val)); // Output sample
+  
+  // LED brightness based on envelope
+  pwm_set_chan_level(sliceLED, PWM_CHAN_B, envTbl[idxClap]);
+  
+  idxClap++;
+  if(idxClap >= TABLE_SZ){             // End of buffer → stop playback
+    playingClap = false;
+    idxClap     = 0;
+    pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0);  // Ensure LED is off
+  }
 }
 
 /**********************  === ISRs ===  *****************************************/
@@ -177,16 +188,12 @@ void on_pwm_wrap(){                      // Called at ≈36.6 kHz from sliceIRQ
 void triggerISR(){
   volFactor = digitalRead(0) ? 0.5f : 1.0f;   // Read accent before latching
   reqTrig  = true;
-  digitalWrite(5, HIGH);                      // LED on
-  ledOffUs = micros() + LED_DURATION_US;      // Schedule LED off
 }
 
 // Manual trigger button (GPIO6, falling‑edge)
 void manualButtonISR(){
   volFactor = digitalRead(0) ? 0.5f : 1.0f;   // Accent input same as above
   reqTrig  = true;
-  digitalWrite(5, HIGH);
-  ledOffUs = micros() + LED_DURATION_US;
 }
 
 /**********************  === SETUP ===  ****************************************/
@@ -203,11 +210,20 @@ void setup(){
   pwm_set_wrap(sliceAudio, 1023);      // 10‑bit period
   pwm_set_enabled(sliceAudio, true);
 
+  /* --- LED PWM output pin (GPIO5) --- */
+  pinMode(5, OUTPUT);
+  gpio_set_function(5, GPIO_FUNC_PWM);
+  sliceLED = pwm_gpio_to_slice_num(5);       // GPIO5 uses slice 2, channel B
+  pwm_set_clkdiv(sliceLED, 1);               // Full speed (150 MHz / 1)
+  pwm_set_wrap(sliceLED, 1023);              // 10‑bit resolution
+  pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0); // Start with LED off
+  pwm_set_enabled(sliceLED, true);
+
   /* --- PWM for IRQ timing (sliceIRQ) --- */
   pinMode(2, OUTPUT); gpio_set_function(2, GPIO_FUNC_PWM);
   sliceIRQ = pwm_gpio_to_slice_num(2);
   pwm_set_clkdiv(sliceIRQ, 1);
-  pwm_set_wrap(sliceIRQ, 4095);        // 4096‑step → SYS_CLOCK/4096 ≈ 36.6 kHz
+  pwm_set_wrap(sliceIRQ, 4095);        // 4096‑step → SYS_CLOCK/4096 ≈ 36.6 kHz
   pwm_set_enabled(sliceIRQ, true);
 
   pwm_clear_irq(sliceIRQ);
@@ -219,25 +235,18 @@ void setup(){
   pinMode(0, INPUT);                                     // Accent input
   pinMode(7, INPUT); attachInterrupt(digitalPinToInterrupt(7), triggerISR, RISING);
   pinMode(6, INPUT_PULLUP); attachInterrupt(digitalPinToInterrupt(6), manualButtonISR, FALLING);
-  pinMode(5, OUTPUT); digitalWrite(5, LOW);              // LED off
 }
 
 /**********************  === LOOP ===  *****************************************/
 void loop(){
-  /* Auto‑extinguish LED after LED_DURATION_US */
-  if(ledOffUs && micros() >= ledOffUs){
-    digitalWrite(5, LOW);
-    ledOffUs = 0;
-  }
-
-  /* --- Read potentiometers once per ms (loop runs ≈1 kHz) --- */
+  /* --- Read potentiometers once per ms (loop runs ≈1 kHz) --- */
   float rawA0 = readADC(A0) / float(ADC_MAX_VAL);         // Q control (0→1)
   float rawA1 = readADC(A1) / float(ADC_MAX_VAL);         // Decay time control
   float norm2 = 1.0f - (readADC(A2) / float(ADC_MAX_VAL));// Fc inverted mapping
 
   bpfQ    = 0.5f + 3.5f * rawA0;                          // Map to 0.5–4.0
-  decayMs = 20.0f + 180.0f * rawA1;                       // 20–200 ms
-  fc      = 50.0f + 7950.0f * norm2;                      // 50 Hz–8 kHz
+  decayMs = 20.0f + 180.0f * rawA1;                       // 20–200 ms
+  fc      = 50.0f + 7950.0f * norm2;                      // 50 Hz–8 kHz
 
   /* --- If any ISR requested a trigger, render & start playback --- */
   if(reqTrig){
@@ -247,5 +256,5 @@ void loop(){
     playingClap = true;
   }
 
-  delayMicroseconds(500);                                 // ≈1 kHz main loop
+  delayMicroseconds(500);                                 // ≈1 kHz main loop
 }
