@@ -1,146 +1,280 @@
 /*
-  XIAO RA4M1 Braids Port - Step 1: Basic DAC Test
-  Tests:
-  - DAC output functionality
-  - Timer interrupt for audio rate
-  - Basic sine wave generation
+  (c) 2025 blueprint@poetaster.de
+  GPLv3 the libraries are MIT as the originals for STM from MI were also MIT.
 */
 
+/* toepler +
+    // Toepler Plus pins
+  #define OUT1 (0u)
+  #define OUT2 (1u)
+  #define SW1 (8u)
+  #define CV1 (26u)
+  #define CV2 (27u)
+  #define CV3 (28u)
+
+*/
+bool debug = true;
+
 #include <Arduino.h>
-//#include <FspTimer.h>
+#include "stdio.h"
+#include "pico/stdlib.h"
+#include "hardware/sync.h"
+#include "potentiometer.h"
 
-// ===== CONFIGURATION =====
-#define DAC_PIN A0          // RA4M1 has hardware DAC on A0
-#define SAMPLERATE 48000    // Audio sample rate
-#define BLOCK_SIZE 32       // Samples per block
-#define LED LED_BUILTIN
+//#include <MIDI.h>
+//#include <mozzi_midi.h>
 
-// ===== AUDIO VARIABLES =====
-volatile bool buffer_ready = false;
-int16_t audio_buffer[BLOCK_SIZE];
-uint32_t phase_accumulator = 0;
-uint32_t phase_increment = 0;
+long midiTimer;
 
-// Timer for audio interrupt
-FspTimer audio_timer;
+float pitch_offset = 36;
+float max_voltage_of_adc = 3.3;
+float voltage_division_ratio = 0.3333333333333;
+float notes_per_octave = 12;
+float volts_per_octave = 1;
 
-// ===== TIMER CALLBACK =====
-void audioTimerCallback(timer_callback_args_t __attribute((unused)) *p_args) {
-    static uint8_t sample_index = 0;
-    
-    // Output one sample to DAC
-    if (sample_index < BLOCK_SIZE) {
-        // Convert signed 16-bit to unsigned 12-bit for DAC (0-4095)
-        int32_t sample = audio_buffer[sample_index];
-        uint16_t dac_value = (sample + 32768) >> 4;  // Scale to 12-bit
-        
-        // Write to DAC
-        analogWrite(DAC_PIN, dac_value);
-        
-        sample_index++;
-    } else {
-        sample_index = 0;
-        buffer_ready = true;  // Signal main loop to prepare next buffer
+float mapping_upper_limit = (max_voltage_of_adc / voltage_division_ratio) * notes_per_octave * volts_per_octave;
+/*
+
+  struct Serial1MIDISettings : public midi::DefaultSettings
+  {
+  static const long BaudRate = 31250;
+  static const int8_t TxPin  = 12u;
+  static const int8_t RxPin  = 13u;
+  };
+
+  MIDI_CREATE_CUSTOM_INSTANCE(HardwareSerial, Serial1, MIDI, Serial1MIDISettings);
+*/
+
+#include <hardware/pwm.h>
+#include <PWMAudio.h>
+
+#define SAMPLERATE 48000
+//#define PWMOUT A0
+#define PWMOUT D7
+#define BUTTON_PIN D4 // D8 on the seeed board
+#define TRIG_PIN D5 // D7 on mod2?
+#define LED 13
+
+#include "utility.h"
+#include <STMLIB.h>
+#include <BRAIDS.h>
+#include "braids.h"
+
+
+#include <Bounce2.h>
+Bounce2::Button button = Bounce2::Button();
+
+PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
+
+
+
+int engineCount = 0;
+int engineInc = 0;
+
+// clock timer  stuff
+
+#define TIMER_INTERRUPT_DEBUG         0
+#define _TIMERINTERRUPT_LOGLEVEL_     4
+
+// Can be included as many times as necessary, without `Multiple Definitions` Linker Error
+#include "RPi_Pico_TimerInterrupt.h"
+
+//unsigned int SWPin = CLOCKIN;
+
+#define TIMER0_INTERVAL_MS 20.833333333333
+
+//24.390243902439025 // 44.1
+// \20.833333333333 running at 48Khz
+// 10.416666666667  96kHz
+
+#define DEBOUNCING_INTERVAL_MS   2// 80
+#define LOCAL_DEBUG              0
+
+volatile int counter = 0;
+
+// Init RPI_PICO_Timer, can use any from 0-15 pseudo-hardware timers
+RPI_PICO_Timer ITimer0(0);
+
+bool TimerHandler0(struct repeating_timer *t) {
+  (void) t;
+  bool sync = true;
+  if ( DAC.availableForWrite()) {
+    for (size_t i = 0; i < BLOCK_SIZE; i++) {
+      DAC.write( voices[0].pd.buffer[i], sync);
     }
+    counter =  1;
+  }
+
+  return true;
 }
 
-// ===== GENERATE TEST SINE WAVE =====
-void generateSineWave(int16_t* buffer, uint32_t frequency) {
-    // Simple sine wave using lookup table
-    static const int16_t sine_table[32] = {
-        0, 6393, 12540, 18205, 23170, 27246, 30274, 32138,
-        32767, 32138, 30274, 27246, 23170, 18205, 12540, 6393,
-        0, -6393, -12540, -18205, -23170, -27246, -30274, -32138,
-        -32767, -32138, -30274, -27246, -23170, -18205, -12540, -6393
-    };
-    
-    phase_increment = (frequency * 4294967296ULL) / SAMPLERATE;
-    
-    for (int i = 0; i < BLOCK_SIZE; i++) {
-        uint8_t index = (phase_accumulator >> 27) & 0x1F;  // Get top 5 bits for table index
-        buffer[i] = sine_table[index] >> 2;  // Reduce amplitude to 1/4
-        phase_accumulator += phase_increment;
+void cb() {
+  bool sync = true;
+  if (DAC.availableForWrite() >= BLOCK_SIZE) {
+    for (int i = 0; i <  BLOCK_SIZE; i++) {
+      // out = ;   // left channel called .aux
+      DAC.write( voices[0].pd.buffer[i]);
     }
+  }
 }
 
-// ===== SETUP =====
+void HandleNoteOn(byte channel, byte note, byte velocity) {
+  pitch_in = note << 7;
+  trigger_in = velocity / 127.0;
+
+  //aSin.setFreq(mtof(float(note)));
+  //envelope.noteOn();
+  //digitalWrite(LED, HIGH);
+}
+void HandleNoteOff(byte channel, byte note, byte velocity) {
+
+  trigger_in = 0.0f;
+
+  //aSin.setFreq(mtof(float(note)));
+  //envelope.noteOn();
+  //digitalWrite(LED, LOW);
+}
+
 void setup() {
-    Serial.begin(115200);
-    delay(1000);  // Wait for serial
-    
-    Serial.println("XIAO RA4M1 Braids Port - Step 1: DAC Test");
-    Serial.println("Testing 440Hz sine wave output on pin A0");
-    
-    // Configure LED
-    pinMode(LED, OUTPUT);
-    digitalWrite(LED, HIGH);
-    
-    // Configure DAC pin
-    pinMode(DAC_PIN, OUTPUT);
-    analogWriteResolution(12);  // Set DAC to 12-bit resolution
-    
-    // Prepare initial audio buffer with 440Hz sine
-    generateSineWave(audio_buffer, 440);
-    
-    // Setup timer for audio rate
-    uint8_t timer_type = GPT_TIMER;
-    int8_t tindex = FspTimer::get_available_timer(timer_type);
-    
-    if (tindex < 0) {
-        Serial.println("ERROR: No timer available!");
-        while(1) { digitalWrite(LED, !digitalRead(LED)); delay(100); }
-    }
-    
-    // Calculate timer frequency: SAMPLERATE Hz
-    float timer_freq = SAMPLERATE;
-    
-    Serial.print("Timer index: ");
-    Serial.println(tindex);
-    Serial.print("Timer frequency: ");
-    Serial.print(timer_freq);
-    Serial.println(" Hz");
-    
-    // Initialize timer
-    audio_timer.begin(TIMER_MODE_PERIODIC, timer_type, tindex, 
-                      timer_freq, 0.0f, audioTimerCallback);
-    audio_timer.setup_overflow_irq();
-    audio_timer.open();
-    audio_timer.start();
-    
-    Serial.println("Audio timer started!");
-    Serial.println("You should hear a 440Hz tone on DAC pin A0");
+
+  if (debug) {
+    Serial.begin(57600);
+    Serial.println(F("YUP"));
+  }
+  analogReadResolution(12);
+  // thi is to switch to PWM for power to avoid ripple noise
+  pinMode(23, OUTPUT);
+  digitalWrite(23, HIGH);
+  
+  pinMode(TRIG_PIN, INPUT_PULLDOWN);
+  pinMode(AIN0, INPUT);
+  pinMode(AIN1, INPUT);
+  pinMode(AIN2, INPUT);
+  pinMode(SCL, INPUT_PULLDOWN);
+
+  //pinMode(LED, OUTPUT);
+  //MIDI.setHandleNoteOn(HandleNoteOn);  // Put only the name of the function
+  //MIDI.setHandleNoteOff(HandleNoteOff);  // Put only the name of the function
+  // Initiate MIDI communications, listen to all channels (not needed with Teensy usbMIDI)
+  //MIDI.begin(MIDI_CHANNEL_OMNI);
+
+  button.attach( BUTTON_PIN , INPUT_PULLUP);
+  button.interval(5);
+  button.setPressedState(LOW);
+
+  // pwm timing setup, we're using a pseudo interrupt
+
+  if (ITimer0.attachInterruptInterval(TIMER0_INTERVAL_MS, TimerHandler0)) // that's 48kHz
+  {
+    if (debug) Serial.print(F("Starting  ITimer0 OK, millis() = ")); Serial.println(millis());
+  }  else {
+    if (debug) Serial.println(F("Can't set ITimer0. Select another freq. or timer"));
+  }
+
+
+  // set up Pico PWM audio output
+  DAC.setBuffers(4, 32); // plaits::kBlockSize); // DMA buffers
+  //DAC.onTransmit(cb);
+  DAC.setFrequency(SAMPLERATE);
+  DAC.begin();
+
+
+  // init the braids voices
+  initVoices();
+
+  // initial reading of the pots with debounce
+  readpot(0);
+  readpot(1);
+  readpot(2);
+
+
+  int16_t timbre = (map(potvalue[0], POT_MIN, POT_MAX, 0, 32767));
+  timbre_in = timbre;
+
+  int16_t morph = (map(potvalue[1], POT_MIN, POT_MAX, 0, 32767));
+  morph_in = morph;
+
+  // fm / pitch updates
+  // int16_t  pitch = map(potvalue[2], POT_MIN, POT_MAX, 16383, 0); // convert pitch CV data value to valid range
+  // pitch_in = pitch - 1638;
+  // used to switch between FM and note on cv3
+
+  midiTimer = millis();
+
 }
 
-// ===== MAIN LOOP =====
+
+
 void loop() {
-    static unsigned long last_print = 0;
-    static unsigned long buffer_count = 0;
-    static bool led_state = false;
-    
-    // Check if we need to prepare next audio buffer
-    if (buffer_ready) {
-        buffer_ready = false;
-        
-        // Generate next buffer of samples
-        generateSineWave(audio_buffer, 440);  // Keep generating 440Hz
-        
-        buffer_count++;
-        
-        // Toggle LED every 1000 buffers (visual feedback)
-        if (buffer_count % 1000 == 0) {
-            led_state = !led_state;
-            digitalWrite(LED, led_state);
-        }
+
+  if ( counter > 0 ) {
+    updateBraidsAudio();
+    counter = 0; // increments on each pass of the timer after the timer writes samples
+  }
+
+}
+
+// second core dedicated to display foo
+
+void setup1() {
+  delay (200); // wait for main core to start up perhipherals
+}
+
+
+
+
+// second core deals with ui / control rate updates
+void loop1() {
+
+  //MIDI.read();
+  uint32_t now = millis();
+  // pot updates
+  // reading A/D seems to cause noise in the audio so don't do it too often
+
+  int16_t timbre = (map(potvalue[0], POT_MIN, POT_MAX, 0, 32767));
+  timbre_in = timbre;
+  int16_t morph = (map(potvalue[1], POT_MIN, POT_MAX, 0, 32767));
+  morph_in = morph;
+
+  // fm / pitch updates
+  // int16_t  pitch = map(potvalue[2], POT_MIN, POT_MAX, 170, 0); // convert pitch CV data value to valid range
+  // pitch_fm = pitch;
+
+  int16_t pitch = map(potvalue[2], POT_MIN, POT_MAX, 3072, 8192); // convert pitch CV data value to valid range
+  int16_t pitch_delta = abs(previous_pitch - pitch);
+  if (pitch_delta > 10) {
+    pitch_in = pitch;
+    previous_pitch = pitch;
+    //trigger_in = 1.0f; //retain for cv only input?
+  }
+
+  button.update();
+  if ( button.pressed() ) {
+    engineCount ++;
+    if (engineCount > 46) {
+      engineCount = 0;
     }
-    
-    // Print status every second
-    unsigned long now = millis();
-    if (now - last_print >= 1000) {
-        last_print = now;
-        Serial.print("Buffers processed: ");
-        Serial.println(buffer_count);
-        Serial.print("Effective sample rate: ");
-        Serial.print((buffer_count * BLOCK_SIZE) / (now / 1000.0));
-        Serial.println(" Hz");
+    engine_in = engineCount;
+  }
+
+  // reading A/D seems to cause noise in the audio so don't do it too often
+
+
+  if ((now - pot_timer) > POT_SAMPLE_TIME) {
+    readpot(0);
+    readpot(1);
+    readpot(2);
+    if (digitalRead(TRIG_PIN) ) {
+      trigger_in = 1.0f;
+    } else {
+      trigger_in = 0.0f;
     }
+    pot_timer = now;
+  }
+
+
+
+
+
+
 }
