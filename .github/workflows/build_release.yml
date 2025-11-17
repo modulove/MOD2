@@ -46,7 +46,10 @@ jobs:
           cp -r /tmp/arduinoMI/BRAIDS "$ARDUINO_LIB_DIR/"
           cp -r /tmp/arduinoMI/STMLIB "$ARDUINO_LIB_DIR/"
 
-          echo "Installed BRAIDS and STMLIB libraries to $ARDUINO_LIB_DIR"
+          # Install Bounce2 library
+          arduino-cli lib install Bounce2
+
+          echo "Installed BRAIDS, STMLIB, and Bounce2 libraries to $ARDUINO_LIB_DIR"
           ls -la "$ARDUINO_LIB_DIR"
 
       - name: Compile firmware for ${{ matrix.firmware }}
