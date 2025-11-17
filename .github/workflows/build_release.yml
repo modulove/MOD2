@@ -49,9 +49,9 @@ jobs:
           # Install required Arduino libraries
           arduino-cli lib install Bounce2
           arduino-cli lib install "RPI_PICO_TimerInterrupt"
-          arduino-cli lib install "PWMAudio"
+          # PWMAudio is included in the rp2040:rp2040 core, no separate installation needed
 
-          echo "Installed BRAIDS, STMLIB, Bounce2, RPI_PICO_TimerInterrupt, and PWMAudio libraries"
+          echo "Installed BRAIDS, STMLIB, Bounce2, and RPI_PICO_TimerInterrupt libraries"
           ls -la "$ARDUINO_LIB_DIR"
 
       - name: Compile firmware for ${{ matrix.firmware }}

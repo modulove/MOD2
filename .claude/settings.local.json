@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(arduino-cli lib search:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
