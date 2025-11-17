@@ -1,0 +1,80 @@
+name: Build and Release MOD2 Firmware
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        firmware: [kick, clap, claves, fm_drum, hihat]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1
+
+      - name: Install RP2350 platform
+        run: |
+          arduino-cli config init
+          arduino-cli config set library.enable_unsafe_install true
+          arduino-cli core update-index
+
+          # Add RP2040/RP2350 board support (Raspberry Pi Pico)
+          arduino-cli core update-index --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+          arduino-cli core install rp2040:rp2040 --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+
+      - name: Compile firmware for ${{ matrix.firmware }}
+        run: |
+          SKETCH_DIR="Firmware/${{ matrix.firmware }}"
+          SKETCH_FILE="${SKETCH_DIR}/MOD2_${{ matrix.firmware }}.ino"
+
+          # Verify sketch file exists
+          if [ ! -f "${SKETCH_FILE}" ]; then
+            echo "Error: Sketch file not found: ${SKETCH_FILE}"
+            ls -la "${SKETCH_DIR}"
+            exit 1
+          fi
+
+          # Compile for RP2350 (Raspberry Pi Pico 2)
+          # Board: Raspberry Pi Pico 2 (rp2350)
+          # Compile the specific .ino file
+          arduino-cli compile -v -b rp2040:rp2040:rpipico2 "${SKETCH_FILE}" -e --output-dir=./build
+
+          # Create release directory
+          mkdir -p ./release
+
+          # Copy UF2 file with descriptive name
+          # The build output will be a .uf2 file for RP2350
+          if [ -f "./build/MOD2_${{ matrix.firmware }}.ino.uf2" ]; then
+            cp "./build/MOD2_${{ matrix.firmware }}.ino.uf2" "./release/MOD2_${{ matrix.firmware }}.uf2"
+          elif [ -f "./build/${{ matrix.firmware }}.ino.uf2" ]; then
+            cp "./build/${{ matrix.firmware }}.ino.uf2" "./release/MOD2_${{ matrix.firmware }}.uf2"
+          else
+            echo "UF2 file not found, listing build directory:"
+            ls -la ./build/
+            exit 1
+          fi
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOD2_${{ matrix.firmware }}
+          path: ./release/*.uf2
+          retention-days: 90
+
+      - name: Upload firmware to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./release/*.uf2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
