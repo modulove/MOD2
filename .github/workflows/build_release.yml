@@ -46,10 +46,12 @@ jobs:
           cp -r /tmp/arduinoMI/BRAIDS "$ARDUINO_LIB_DIR/"
           cp -r /tmp/arduinoMI/STMLIB "$ARDUINO_LIB_DIR/"
 
-          # Install Bounce2 library
+          # Install required Arduino libraries
           arduino-cli lib install Bounce2
+          arduino-cli lib install "RPI_PICO_TimerInterrupt"
+          arduino-cli lib install "PWMAudio"
 
-          echo "Installed BRAIDS, STMLIB, and Bounce2 libraries to $ARDUINO_LIB_DIR"
+          echo "Installed BRAIDS, STMLIB, Bounce2, RPI_PICO_TimerInterrupt, and PWMAudio libraries"
           ls -la "$ARDUINO_LIB_DIR"
 
       - name: Compile firmware for ${{ matrix.firmware }}
