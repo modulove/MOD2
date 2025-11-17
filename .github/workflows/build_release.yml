@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [kick, clap, claves, fm_drum, hihat]
+        firmware: [kick, clap, claves, fm_drum, hihat, vco]
 
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
       - name: Compile firmware for ${{ matrix.firmware }}
         run: |
           SKETCH_DIR="Firmware/${{ matrix.firmware }}"
-          SKETCH_FILE="${SKETCH_DIR}/MOD2_${{ matrix.firmware }}.ino"
+          SKETCH_FILE="${SKETCH_DIR}/${{ matrix.firmware }}.ino"
 
           # Verify sketch file exists
           if [ ! -f "${SKETCH_FILE}" ]; then
@@ -54,10 +54,10 @@ jobs:
 
           # Copy UF2 file with descriptive name
           # The build output will be a .uf2 file for RP2350
-          if [ -f "./build/MOD2_${{ matrix.firmware }}.ino.uf2" ]; then
-            cp "./build/MOD2_${{ matrix.firmware }}.ino.uf2" "./release/MOD2_${{ matrix.firmware }}.uf2"
+          if [ -f "./build/${{ matrix.firmware }}.ino.uf2" ]; then
+            cp "./build/${{ matrix.firmware }}.ino.uf2" "./release/${{ matrix.firmware }}.uf2"
           elif [ -f "./build/${{ matrix.firmware }}.ino.uf2" ]; then
-            cp "./build/${{ matrix.firmware }}.ino.uf2" "./release/MOD2_${{ matrix.firmware }}.uf2"
+            cp "./build/${{ matrix.firmware }}.ino.uf2" "./release/${{ matrix.firmware }}.uf2"
           else
             echo "UF2 file not found, listing build directory:"
             ls -la ./build/
@@ -67,7 +67,7 @@ jobs:
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MOD2_${{ matrix.firmware }}
+          name: ${{ matrix.firmware }}
           path: ./release/*.uf2
           retention-days: 90
 

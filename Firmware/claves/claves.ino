@@ -88,7 +88,7 @@ void on_pwm_wrap() {
 
   if (!playing) {                           // Output mid‑scale when idle
     pwm_set_chan_level(sliceAudio, PWM_CHAN_B, uint16_t(PWM_MID));
-    pwm_set_chan_level(sliceLED, PWM_CHAN_A, 0);  // LED off
+    pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0);  // LED off
     return;
   }
 
@@ -96,12 +96,12 @@ void on_pwm_wrap() {
   pwm_set_chan_level(sliceAudio, PWM_CHAN_B, finalTbl[tblIdx]);
   
   // Set LED brightness based on envelope
-  pwm_set_chan_level(sliceLED, PWM_CHAN_A, envTbl[tblIdx]);
+  pwm_set_chan_level(sliceLED, PWM_CHAN_B, envTbl[tblIdx]);
 
   if (++tblIdx >= TABLE_SZ) {               // Stop after final sample
     playing = false;
     tblIdx  = 0;
-    pwm_set_chan_level(sliceLED, PWM_CHAN_A, 0);  // Ensure LED is off
+    pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0);  // Ensure LED is off
   }
 }
 
@@ -199,10 +199,10 @@ void setup() {
   gpio_set_function(1, GPIO_FUNC_PWM);
   sliceAudio = pwm_gpio_to_slice_num(1);     // Note: GPIO0/1 share slice 0
 
-  /* --- LED PWM output pin (GPIO8) ----------------------------------- */
+  /* --- LED PWM output pin (GPIO5) ----------------------------------- */
   pinMode(5, OUTPUT);
   gpio_set_function(5, GPIO_FUNC_PWM);
-  sliceLED = pwm_gpio_to_slice_num(5);       // GPIO8/9 use slice 4
+  sliceLED = pwm_gpio_to_slice_num(5);       // GPIO5 uses slice 2, channel B
 
   /* --- Second PWM slice as 36.6 kHz timer (GPIO2) ------------------- */
   pinMode(2, OUTPUT);
@@ -214,10 +214,10 @@ void setup() {
   pwm_set_wrap  (sliceAudio, 1023);          // 10‑bit resolution
   pwm_set_enabled(sliceAudio, true);
 
-  /* --- LED PWM channel (channel A) ---------------------------------- */
+  /* --- LED PWM channel (channel B) ---------------------------------- */
   pwm_set_clkdiv(sliceLED, 1);               // Full speed (150 MHz / 1)
   pwm_set_wrap  (sliceLED, 1023);            // 10‑bit resolution
-  pwm_set_chan_level(sliceLED, PWM_CHAN_A, 0); // Start with LED off
+  pwm_set_chan_level(sliceLED, PWM_CHAN_B, 0); // Start with LED off
   pwm_set_enabled(sliceLED, true);
 
   /* --- Timer PWM channel -------------------------------------------- */
