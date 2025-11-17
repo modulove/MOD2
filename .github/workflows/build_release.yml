@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [kick, clap, claves, fm_drum, hihat, vco]
+        firmware: [kick, clap, claves, fm_drum, hihat, vco, braids]
 
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,23 @@ jobs:
           # Add RP2040/RP2350 board support (Raspberry Pi Pico)
           arduino-cli core update-index --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
           arduino-cli core install rp2040:rp2040 --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+
+      - name: Install BRAIDS and STMLIB libraries for braids firmware
+        if: matrix.firmware == 'braids'
+        run: |
+          # Clone the arduinoMI repository to get BRAIDS and STMLIB libraries
+          git clone https://github.com/poetaster/arduinoMI.git /tmp/arduinoMI
+
+          # Get Arduino libraries directory
+          ARDUINO_LIB_DIR=$(arduino-cli config dump | grep "user:" | cut -d: -f2 | xargs)/libraries
+          mkdir -p "$ARDUINO_LIB_DIR"
+
+          # Copy BRAIDS and STMLIB to Arduino libraries directory
+          cp -r /tmp/arduinoMI/BRAIDS "$ARDUINO_LIB_DIR/"
+          cp -r /tmp/arduinoMI/STMLIB "$ARDUINO_LIB_DIR/"
+
+          echo "Installed BRAIDS and STMLIB libraries to $ARDUINO_LIB_DIR"
+          ls -la "$ARDUINO_LIB_DIR"
 
       - name: Compile firmware for ${{ matrix.firmware }}
         run: |
