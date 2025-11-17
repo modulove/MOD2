@@ -7,7 +7,7 @@
 */
 
 #include <Arduino.h>
-#include <FspTimer.h>
+//#include <FspTimer.h>
 
 // ===== CONFIGURATION =====
 #define DAC_PIN A0          // RA4M1 has hardware DAC on A0
