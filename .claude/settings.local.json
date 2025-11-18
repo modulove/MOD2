@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(arduino-cli lib search:*)",
-      "Bash(gh repo list:*)"
+      "Bash(gh repo list:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(cat:*)",
+      "Bash(/tmp/mod2_backup.md)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
