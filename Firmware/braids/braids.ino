@@ -13,7 +13,7 @@
   #define CV3 (28u)
 
 */
-bool debug = false;
+bool debug = true;  // Enable debug output for engine information
 
 #include <Arduino.h>
 #include "stdio.h"
@@ -47,6 +47,7 @@ float mapping_upper_limit = (max_voltage_of_adc / voltage_division_ratio) * note
 
 #include <hardware/pwm.h>
 #include <PWMAudio.h>
+#include <EEPROM.h>
 
 #define SAMPLERATE 48000
 //#define PWMOUT A0
@@ -66,10 +67,60 @@ Bounce2::Button button = Bounce2::Button();
 
 PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
 
-
+// Braids engine names (47 total, 0-46)
+const char* engineNames[47] = {
+  "CSAW",      // 0 - Classic sawtooth
+  "MORPH",     // 1 - Morphing saw/square
+  "SAW_SQ",    // 2 - Saw and square mix
+  "FOLD",      // 3 - Wavefolding
+  "SQ_SUB",    // 4 - Square with sub
+  "SAW_SUB",   // 5 - Sawtooth with sub
+  "SQ_SYNC",   // 6 - Square sync
+  "SAW_3",     // 7 - Sawtooth swarm (3x)
+  "SQ_3",      // 8 - Square swarm (3x)
+  "SAW_COMB",  // 9 - Sawtooth comb
+  "TOY",       // 10 - Toy synthesizer
+  "ZLPF",      // 11 - Low-pass filtered saw
+  "ZPKF",      // 12 - Peak filtered saw
+  "ZBPF",      // 13 - Band-pass filtered saw
+  "ZHPF",      // 14 - High-pass filtered saw
+  "VOSIM",     // 15 - VOSIM formant
+  "VOWEL",     // 16 - Vowel synthesis
+  "VOW_FOF",   // 17 - FOF vowel synthesis
+  "HARM",      // 18 - Harmonic oscillator
+  "FM",        // 19 - 2-operator FM
+  "FBFM",      // 20 - Feedback FM
+  "WTFM",      // 21 - Wavetable FM
+  "PLUCK",     // 22 - Karplus-Strong plucked string
+  "BOW",       // 23 - Bowed string
+  "BLOW",      // 24 - Blown pipe
+  "FLUTE",     // 25 - Flute model
+  "BELL",      // 26 - Bell/metallic
+  "DRUM",      // 27 - Drum model
+  "KICK",      // 28 - Kick drum
+  "CYMBAL",    // 29 - Cymbal
+  "SNARE",     // 30 - Snare drum
+  "WTBL",      // 31 - Wavetable
+  "WMAP",      // 32 - Wavemap
+  "WLIN",      // 33 - Wave terrain
+  "WTx4",      // 34 - 4x wavetable
+  "NOISE",     // 35 - Particle noise
+  "TWNQ",      // 36 - Twin peaks noise
+  "CLKN",      // 37 - Clocked noise
+  "CLOUD",     // 38 - Granular cloud
+  "PRTC",      // 39 - Particle system
+  "QPSK",      // 40 - Digital modulation
+  "ENG41",     // 41 - Engine 41
+  "ENG42",     // 42 - Engine 42
+  "ENG43",     // 43 - Engine 43
+  "ENG44",     // 44 - Engine 44
+  "ENG45",     // 45 - Engine 45
+  "ENG46"      // 46 - Engine 46
+};
 
 int engineCount = 0;
 int engineInc = 0;
+bool longPressHandled = false;
 
 // clock timer  stuff
 
@@ -139,8 +190,31 @@ void setup() {
 
   if (debug) {
     Serial.begin(57600);
-    Serial.println(F("YUP"));
+    Serial.println(F("=== MOD2 BRAIDS FIRMWARE ==="));
   }
+
+  // Initialize EEPROM and load saved engine
+  EEPROM.begin(128);
+  uint8_t savedEngine;
+  EEPROM.get(0, savedEngine);
+  if (savedEngine <= 46) {
+    engineCount = savedEngine;
+    engine_in = engineCount;
+    if (debug) {
+      Serial.print(F("Loaded engine from EEPROM: "));
+      Serial.print(engineCount);
+      Serial.print(F(" - "));
+      Serial.println(engineNames[engineCount]);
+    }
+  } else {
+    // Invalid saved value, use default
+    engineCount = 17;  // VOW_FOF (default)
+    engine_in = engineCount;
+    if (debug) {
+      Serial.println(F("No valid saved engine, using default: VOW_FOF"));
+    }
+  }
+
   analogReadResolution(12);
   // thi is to switch to PWM for power to avoid ripple noise
   pinMode(23, OUTPUT);
@@ -249,12 +323,51 @@ void loop1() {
   }
 
   button.update();
-  if ( button.pressed() ) {
-    engineCount ++;
+
+  // Short press: increment engine
+  if (button.pressed()) {
+    engineCount++;
     if (engineCount > 46) {
       engineCount = 0;
     }
     engine_in = engineCount;
+
+    // Save to EEPROM
+    EEPROM.put(0, (uint8_t)engineCount);
+    EEPROM.commit();
+
+    if (debug) {
+      Serial.print(F("Engine: "));
+      Serial.print(engineCount);
+      Serial.print(F(" - "));
+      Serial.println(engineNames[engineCount]);
+    }
+  }
+
+  // Long press detection (>500ms): decrement engine
+  if (button.isPressed() && button.currentDuration() > 500) {
+    if (!longPressHandled) {
+      engineCount--;
+      if (engineCount < 0) {
+        engineCount = 46;
+      }
+      engine_in = engineCount;
+
+      // Save to EEPROM
+      EEPROM.put(0, (uint8_t)engineCount);
+      EEPROM.commit();
+
+      longPressHandled = true;
+
+      if (debug) {
+        Serial.print(F("Engine (long): "));
+        Serial.print(engineCount);
+        Serial.print(F(" - "));
+        Serial.println(engineNames[engineCount]);
+      }
+    }
+  } else {
+    longPressHandled = false;  // Reset when released
   }
 
   // reading A/D seems to cause noise in the audio so don't do it too often
