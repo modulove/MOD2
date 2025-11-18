@@ -66,55 +66,98 @@ Bounce2::Button button = Bounce2::Button();
 
 PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
 
-// Braids engine names (47 total, 0-46)
-const char* engineNames[47] = {
+// Braids Renaissance engine names (56 total, 0-55)
+// Based on Braids Renaissance alternative firmware by Tom Burns
+// https://github.com/boourns/eurorack/tree/master/braids
+const char* engineNames[56] = {
+  // Analog-style oscillators
   "CSAW",      // 0 - Classic sawtooth
   "MORPH",     // 1 - Morphing saw/square
   "SAW_SQ",    // 2 - Saw and square mix
-  "FOLD",      // 3 - Wavefolding
-  "SQ_SUB",    // 4 - Square with sub
-  "SAW_SUB",   // 5 - Sawtooth with sub
-  "SQ_SYNC",   // 6 - Square sync
-  "SAW_3",     // 7 - Sawtooth swarm (3x)
-  "SQ_3",      // 8 - Square swarm (3x)
-  "SAW_COMB",  // 9 - Sawtooth comb
-  "TOY",       // 10 - Toy synthesizer
-  "ZLPF",      // 11 - Low-pass filtered saw
-  "ZPKF",      // 12 - Peak filtered saw
-  "ZBPF",      // 13 - Band-pass filtered saw
-  "ZHPF",      // 14 - High-pass filtered saw
-  "VOSIM",     // 15 - VOSIM formant
-  "VOWEL",     // 16 - Vowel synthesis
-  "VOW_FOF",   // 17 - FOF vowel synthesis
-  "HARM",      // 18 - Harmonic oscillator
-  "FM",        // 19 - 2-operator FM
-  "FBFM",      // 20 - Feedback FM
-  "WTFM",      // 21 - Wavetable FM
-  "PLUCK",     // 22 - Karplus-Strong plucked string
-  "BOW",       // 23 - Bowed string
-  "BLOW",      // 24 - Blown pipe
-  "FLUTE",     // 25 - Flute model
-  "BELL",      // 26 - Bell/metallic
-  "DRUM",      // 27 - Drum model
-  "KICK",      // 28 - Kick drum
-  "CYMBAL",    // 29 - Cymbal
-  "SNARE",     // 30 - Snare drum
-  "WTBL",      // 31 - Wavetable
-  "WMAP",      // 32 - Wavemap
-  "WLIN",      // 33 - Wave terrain
-  "WTx4",      // 34 - 4x wavetable
-  "NOISE",     // 35 - Particle noise
-  "TWNQ",      // 36 - Twin peaks noise
-  "CLKN",      // 37 - Clocked noise
-  "CLOUD",     // 38 - Granular cloud
-  "PRTC",      // 39 - Particle system
-  "QPSK",      // 40 - Digital modulation
-  "ENG41",     // 41 - Engine 41
-  "ENG42",     // 42 - Engine 42
-  "ENG43",     // 43 - Engine 43
-  "ENG44",     // 44 - Engine 44
-  "ENG45",     // 45 - Engine 45
-  "ENG46"      // 46 - Engine 46
+  "SIN_TRI",   // 3 - Sine/triangle (Renaissance: was FOLD)
+  "BUZZ",      // 4 - Buzz (Renaissance: was SQ_SUB)
+
+  // Analog with sub-oscillator
+  "SQ_SUB",    // 5 - Square with sub
+  "SAW_SUB",   // 6 - Sawtooth with sub
+
+  // Sync oscillators
+  "SQ_SYNC",   // 7 - Square sync
+  "SAW_SYNC",  // 8 - Saw sync
+
+  // Triple oscillators (3x unison)
+  "SAW_3",     // 9 - Triple saw
+  "SQ_3",      // 10 - Triple square
+  "TRI_3",     // 11 - Triple triangle
+  "SIN_3",     // 12 - Triple sine
+  "RING_3",    // 13 - Triple ring mod
+
+  // Chord modes (NEW - Renaissance feature)
+  "CH_SAW",    // 14 - Chord saw
+  "CH_SQ",     // 15 - Chord square
+  "CH_TRI",    // 16 - Chord triangle
+  "CH_SIN",    // 17 - Chord sine
+  "CH_WT",     // 18 - Chord wavetable
+
+  // Stack modes (NEW - Renaissance feature, 6-voice)
+  "STK_SAW",   // 19 - Stack saw (6x)
+  "STK_SQ",    // 20 - Stack square (6x)
+  "STK_TRI",   // 21 - Stack triangle (6x)
+  "STK_SIN",   // 22 - Stack sine (6x)
+  "STK_WT",    // 23 - Stack wavetable (6x)
+
+  // Swarm and comb
+  "SWARM",     // 24 - Saw swarm
+  "SAW_COMB",  // 25 - Sawtooth comb
+  "TOY",       // 26 - Toy synthesizer
+
+  // Filtered oscillators
+  "ZLPF",      // 27 - Low-pass filtered saw
+  "ZPKF",      // 28 - Peak filtered saw
+  "ZBPF",      // 29 - Band-pass filtered saw
+  "ZHPF",      // 30 - High-pass filtered saw
+
+  // Formant synthesis
+  "VOSIM",     // 31 - VOSIM formant
+  "VOWEL",     // 32 - Vowel synthesis
+  "VOW_FOF",   // 33 - FOF vowel synthesis
+
+  // Additive/harmonic
+  "HARM",      // 34 - Harmonic oscillator
+
+  // FM synthesis
+  "FM",        // 35 - 2-operator FM
+  "FBFM",      // 36 - Feedback FM
+  "CHAOFM",    // 37 - Chaotic feedback FM
+
+  // Physical modeling
+  "PLUCK",     // 38 - Karplus-Strong plucked string
+  "BOW",       // 39 - Bowed string
+  "BLOW",      // 40 - Blown pipe
+  "FLUTE",     // 41 - Flute model
+
+  // Struck/percussive models
+  "BELL",      // 42 - Struck bell
+  "DRUM",      // 43 - Struck drum
+  "KICK",      // 44 - Kick drum
+  "CYMBAL",    // 45 - Cymbal/hat
+  "SNARE",     // 46 - Snare drum
+
+  // Wavetable
+  "WTBL",      // 47 - Wavetable
+  "WMAP",      // 48 - Wavemap
+  "WLIN",      // 49 - Wave terrain/line
+
+  // SAM modes (NEW - Renaissance feature)
+  "SAM1",      // 50 - SAM vocoder bank 1
+  "SAM2",      // 51 - SAM vocoder bank 2
+
+  // Noise/granular
+  "NOISE",     // 52 - Filtered noise
+  "TWNQ",      // 53 - Twin peaks noise
+  "CLKN",      // 54 - Clocked noise
+  "CLOUD",     // 55 - Granular cloud
+  "PRTC"       // 56 - Particle noise (Note: array size 56 but max index 55)
 };
 
 int engineCount = 0;
@@ -324,7 +367,7 @@ void loop1() {
     if (!longPressHandled) {
       engineCount--;
       if (engineCount < 0) {
-        engineCount = 46;
+        engineCount = 55;  // Renaissance: 56 engines (0-55)
       }
       engine_in = engineCount;
       longPressHandled = true;
@@ -340,7 +383,7 @@ void loop1() {
     // Short press: increment engine (only trigger on release if it wasn't a long press)
     if (!longPressHandled) {
       engineCount++;
-      if (engineCount > 46) {
+      if (engineCount > 55) {  // Renaissance: 56 engines (0-55)
         engineCount = 0;
       }
       engine_in = engineCount;

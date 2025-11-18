@@ -1,0 +1,4 @@
+*.o
+wordlist.cc
+wordlist.h
+
