@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [kick, clap, claves, fm_drum, hihat, vco, braids]
+        firmware: [kick, clap, claves, fm_drum, hihat, vco, sample, braids]
 
     steps:
       - uses: actions/checkout@v4
@@ -89,7 +89,7 @@ jobs:
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.firmware }}
+          name: ${{ matrix.firmware }}-firmware
           path: ./release/*.uf2
           retention-days: 90
 
@@ -100,3 +100,28 @@ jobs:
           files: ./release/*.uf2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Collect all firmware files into a single artifact
+  collect-firmware:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download all firmware artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-firmware
+
+      - name: Organize firmware files
+        run: |
+          mkdir -p ./firmware-release
+          find ./all-firmware -name "*.uf2" -exec cp {} ./firmware-release/ \;
+          ls -lh ./firmware-release/
+
+      - name: Upload combined firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-mod2-firmware
+          path: ./firmware-release/*.uf2
+          retention-days: 90
