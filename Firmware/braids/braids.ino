@@ -47,7 +47,6 @@ float mapping_upper_limit = (max_voltage_of_adc / voltage_division_ratio) * note
 
 #include <hardware/pwm.h>
 #include <PWMAudio.h>
-#include <EEPROM.h>
 
 #define SAMPLERATE 48000
 //#define PWMOUT A0
@@ -193,26 +192,14 @@ void setup() {
     Serial.println(F("=== MOD2 BRAIDS FIRMWARE ==="));
   }
 
-  // Initialize EEPROM and load saved engine
-  EEPROM.begin(128);
-  uint8_t savedEngine;
-  EEPROM.get(0, savedEngine);
-  if (savedEngine <= 46) {
-    engineCount = savedEngine;
-    engine_in = engineCount;
-    if (debug) {
-      Serial.print(F("Loaded engine from EEPROM: "));
-      Serial.print(engineCount);
-      Serial.print(F(" - "));
-      Serial.println(engineNames[engineCount]);
-    }
-  } else {
-    // Invalid saved value, use default
-    engineCount = 17;  // VOW_FOF (default)
-    engine_in = engineCount;
-    if (debug) {
-      Serial.println(F("No valid saved engine, using default: VOW_FOF"));
-    }
+  // Set default engine
+  engineCount = 22;  // PLUCK (default)
+  engine_in = engineCount;
+  if (debug) {
+    Serial.print(F("Default engine: "));
+    Serial.print(engineCount);
+    Serial.print(F(" - "));
+    Serial.println(engineNames[engineCount]);
   }
 
   analogReadResolution(12);
@@ -226,7 +213,7 @@ void setup() {
   pinMode(AIN2, INPUT);
   pinMode(SCL, INPUT_PULLDOWN);
 
-  //pinMode(LED, OUTPUT);
+  pinMode(LED, OUTPUT);
   //MIDI.setHandleNoteOn(HandleNoteOn);  // Put only the name of the function
   //MIDI.setHandleNoteOff(HandleNoteOff);  // Put only the name of the function
   // Initiate MIDI communications, listen to all channels (not needed with Teensy usbMIDI)
@@ -332,10 +319,6 @@ void loop1() {
     }
     engine_in = engineCount;
 
-    // Save to EEPROM
-    EEPROM.put(0, (uint8_t)engineCount);
-    EEPROM.commit();
-
     if (debug) {
       Serial.print(F("Engine: "));
       Serial.print(engineCount);
@@ -352,11 +335,6 @@ void loop1() {
         engineCount = 46;
       }
       engine_in = engineCount;
-
-      // Save to EEPROM
-      EEPROM.put(0, (uint8_t)engineCount);
-      EEPROM.commit();
-
       longPressHandled = true;
 
       if (debug) {
@@ -379,8 +357,10 @@ void loop1() {
     readpot(2);
     if (digitalRead(TRIG_PIN) ) {
       trigger_in = 1.0f;
+      digitalWrite(LED, HIGH);  // Turn LED on when trigger received
     } else {
       trigger_in = 0.0f;
+      digitalWrite(LED, LOW);   // Turn LED off when no trigger
     }
     pot_timer = now;
   }

@@ -40,16 +40,9 @@ uint16_t readpot(uint8_t potnum) {
     input = AIN2;
   }
 
-  // note that Pikocore pots are wired "backwards" - max voltage is full ccw
-  // Invert POT1 and POT2, but NOT POT3 (pitch)
-
+  // Read pot value with averaging
   for (int j = 0; j < POT_AVERAGING; ++j) val += (analogRead(input)); // read the A/D a few times and average for a more stable value
   val = val / POT_AVERAGING;
-
-  // Invert direction for POT1 and POT2, keep POT3 (pitch) normal
-  if (potnum != 2) {
-    val = POT_MAX - val;  // Invert pot direction (clockwise = higher values)
-  }
 
   if (potlock[potnum]) {
     int delta = lastpotvalue[potnum] - val; // this needs to be done outside of the abs() function - see arduino abs() docs
