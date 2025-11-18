@@ -13,7 +13,7 @@
   #define CV3 (28u)
 
 */
-bool debug = true;
+bool debug = false;
 
 #include <Arduino.h>
 #include "stdio.h"
