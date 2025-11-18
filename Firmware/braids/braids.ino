@@ -47,7 +47,6 @@ float mapping_upper_limit = (max_voltage_of_adc / voltage_division_ratio) * note
 
 #include <hardware/pwm.h>
 #include <PWMAudio.h>
-#include <EEPROM.h>
 
 #define SAMPLERATE 48000
 //#define PWMOUT A0
@@ -121,8 +120,6 @@ const char* engineNames[47] = {
 int engineCount = 0;
 int engineInc = 0;
 bool longPressHandled = false;
-bool needsEEPROMSave = false;
-uint32_t lastButtonPress = 0;
 
 // clock timer  stuff
 
@@ -195,26 +192,14 @@ void setup() {
     Serial.println(F("=== MOD2 BRAIDS FIRMWARE ==="));
   }
 
-  // Initialize EEPROM and load saved engine
-  EEPROM.begin(128);
-  uint8_t savedEngine;
-  EEPROM.get(0, savedEngine);
-  if (savedEngine <= 46) {
-    engineCount = savedEngine;
-    engine_in = engineCount;
-    if (debug) {
-      Serial.print(F("Loaded engine from EEPROM: "));
-      Serial.print(engineCount);
-      Serial.print(F(" - "));
-      Serial.println(engineNames[engineCount]);
-    }
-  } else {
-    // Invalid saved value, use default
-    engineCount = 17;  // VOW_FOF (default)
-    engine_in = engineCount;
-    if (debug) {
-      Serial.println(F("No valid saved engine, using default: VOW_FOF"));
-    }
+  // Set default engine
+  engineCount = 22;  // PLUCK (default)
+  engine_in = engineCount;
+  if (debug) {
+    Serial.print(F("Default engine: "));
+    Serial.print(engineCount);
+    Serial.print(F(" - "));
+    Serial.println(engineNames[engineCount]);
   }
 
   analogReadResolution(12);
@@ -228,7 +213,7 @@ void setup() {
   pinMode(AIN2, INPUT);
   pinMode(SCL, INPUT_PULLDOWN);
 
-  //pinMode(LED, OUTPUT);
+  pinMode(LED, OUTPUT);
   //MIDI.setHandleNoteOn(HandleNoteOn);  // Put only the name of the function
   //MIDI.setHandleNoteOff(HandleNoteOff);  // Put only the name of the function
   // Initiate MIDI communications, listen to all channels (not needed with Teensy usbMIDI)
@@ -333,8 +318,6 @@ void loop1() {
       engineCount = 0;
     }
     engine_in = engineCount;
-    needsEEPROMSave = true;
-    lastButtonPress = now;
 
     if (debug) {
       Serial.print(F("Engine: "));
@@ -352,8 +335,6 @@ void loop1() {
         engineCount = 46;
       }
       engine_in = engineCount;
-      needsEEPROMSave = true;
-      lastButtonPress = now;
       longPressHandled = true;
 
       if (debug) {
@@ -367,29 +348,6 @@ void loop1() {
     longPressHandled = false;  // Reset when released
   }
 
-  // Delayed EEPROM save (wait 2 seconds after last button press to avoid blocking audio)
-  if (needsEEPROMSave && (now - lastButtonPress) > 2000) {
-    // Mute audio during EEPROM save to prevent artifacts
-    bool dacWasRunning = false;
-    if (DAC.running()) {
-      DAC.end();
-      dacWasRunning = true;
-    }
-
-    EEPROM.put(0, (uint8_t)engineCount);
-    EEPROM.commit();
-    needsEEPROMSave = false;
-
-    // Resume audio
-    if (dacWasRunning) {
-      DAC.begin();
-    }
-
-    if (debug) {
-      Serial.println(F("Saved to EEPROM"));
-    }
-  }
-
   // reading A/D seems to cause noise in the audio so don't do it too often
 
 
@@ -399,8 +357,10 @@ void loop1() {
     readpot(2);
     if (digitalRead(TRIG_PIN) ) {
       trigger_in = 1.0f;
+      digitalWrite(LED, HIGH);  // Turn LED on when trigger received
     } else {
       trigger_in = 0.0f;
+      digitalWrite(LED, LOW);   // Turn LED off when no trigger
     }
     pot_timer = now;
   }
