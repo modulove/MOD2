@@ -1,8 +1,43 @@
 # BRAIDS Library Changes for Renaissance Integration
 
-This document tracks all changes made to the external BRAIDS library located at:
-`C:\Users\linus\Documents\Arduino\libraries\BRAIDS\`
+## ✅ Now Using Forked Library
 
+**Update**: These changes have been committed to your arduinoMI fork on the `renaissance` branch:
+- Repository: https://github.com/modulove/arduinoMI
+- Branch: `renaissance`
+- Commit: ca2f333
+
+## Installation Instructions
+
+To use the Renaissance-enabled BRAIDS library with Arduino IDE:
+
+1. Navigate to your Arduino libraries folder:
+   ```
+   C:\Users\linus\Documents\Arduino\libraries\
+   ```
+
+2. Backup your current BRAIDS library (if desired)
+
+3. Replace with the Renaissance version:
+   - Option A: Clone from your fork:
+     ```bash
+     cd "C:\Users\linus\Documents\Arduino\libraries\"
+     rm -rf BRAIDS
+     git clone -b renaissance https://github.com/modulove/arduinoMI.git temp
+     mv temp/BRAIDS ./BRAIDS
+     rm -rf temp
+     ```
+
+   - Option B: Copy from your local clone:
+     ```bash
+     cp -r "M:/Meine Ablage/11_Code/Github_Clones_vscode/arduinoMI/BRAIDS" "C:/Users/linus/Documents/Arduino/libraries/"
+     ```
+
+4. Restart Arduino IDE
+
+## Original Documentation
+
+This document tracks all changes made to the external BRAIDS library.
 These changes are required for the Renaissance firmware integration to compile and function correctly.
 
 ## Files Modified
