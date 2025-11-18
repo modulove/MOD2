@@ -4,7 +4,7 @@ Welcome to the MOD2 Workshop repository – a collection of Firmwares for Hagiwo
 
 ## Available Firmware
 
-This repository includes 8 different firmware options for the MOD2 hardware:
+This repository includes 7 different firmware options for the MOD2 hardware:
 
 1. **[BRAIDS](Firmware/braids/README.md)** - Macro oscillator with 47 synthesis engines (Mutable Instruments port)
 2. **[CLAP](Firmware/clap/README.md)** - TR-808 style hand clap synthesizer
@@ -12,8 +12,17 @@ This repository includes 8 different firmware options for the MOD2 hardware:
 4. **[FM_DRUM](Firmware/fm_drum/README.md)** - Two-operator FM percussion with dual mode
 5. **[HIHAT](Firmware/hihat/README.md)** - Blue/white noise hi-hat synthesizer
 6. **[KICK](Firmware/kick/README.md)** - Six-parameter kick drum synthesizer
-7. **[SAMPLE](Firmware/sample/README.md)** - Sample player with 18 sample slots
-8. **[VCO](Firmware/vco/README.md)** - Six-waveform voltage controlled oscillator
+7. **[VCO](Firmware/vco/README.md)** - Six-waveform voltage controlled oscillator
+
+### Sample Player Firmware
+
+The **[SAMPLE](Firmware/sample/README.md)** player firmware requires a `sample.h` file containing audio samples. This file is not included in the repository but is available from Hagiwo's Patreon:
+
+**[Download Sample Firmware from Hagiwo's Patreon](https://www.patreon.com/posts/code-for-mod2-131363551)**
+
+Please support the original creator!
+
+---
 
 Each firmware includes detailed documentation with control mappings, features, and patch recommendations.
 
@@ -21,11 +30,22 @@ Each firmware includes detailed documentation with control mappings, features, a
 
 ### Method 1: Download Pre-Built Firmware (Easiest)
 
+**Option A: Direct Downloads (Recommended)**
+- Download from dl.modulove.io:
+  - [MOD2_braids.uf2](https://dl.modulove.io/releases/MOD2_braids.uf2)
+  - [MOD2_clap.uf2](https://dl.modulove.io/releases/MOD2_clap.uf2)
+  - [MOD2_claves.uf2](https://dl.modulove.io/releases/MOD2_claves.uf2)
+  - [MOD2_fm_drum.uf2](https://dl.modulove.io/releases/MOD2_fm_drum.uf2)
+  - [MOD2_hihat.uf2](https://dl.modulove.io/releases/MOD2_hihat.uf2)
+  - [MOD2_kick.uf2](https://dl.modulove.io/releases/MOD2_kick.uf2)
+  - [MOD2_vco.uf2](https://dl.modulove.io/releases/MOD2_vco.uf2)
+
+**Option B: GitHub Artifacts**
 1. Go to the [Actions](https://github.com/modulove/MOD2/actions) tab
 2. Click on the latest successful workflow run
 3. Scroll down to "Artifacts"
 4. Download either:
-   - `all-mod2-firmware` - Contains all 8 firmware files
+   - `all-mod2-firmware` - Contains all 7 firmware files
    - Individual firmware (e.g., `braids-firmware`, `kick-firmware`, etc.)
 5. Extract the .uf2 file(s)
 

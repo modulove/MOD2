@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(arduino-cli lib search:*)"
+      "Bash(arduino-cli lib search:*)",
+      "Bash(gh repo list:*)"
     ],
     "deny": [],
     "ask": []

@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [kick, clap, claves, fm_drum, hihat, vco, sample, braids]
+        firmware: [kick, clap, claves, fm_drum, hihat, vco, braids]
 
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +116,11 @@ jobs:
       - name: Organize firmware files
         run: |
           mkdir -p ./firmware-release
-          find ./all-firmware -name "*.uf2" -exec cp {} ./firmware-release/ \;
+          # Copy and rename files to match dl.modulove.io naming convention
+          find ./all-firmware -name "*.uf2" | while read file; do
+            firmware_name=$(basename $(dirname "$file") | sed 's/-firmware$//')
+            cp "$file" "./firmware-release/MOD2_${firmware_name}.uf2"
+          done
           ls -lh ./firmware-release/
 
       - name: Upload combined firmware artifact
@@ -125,3 +129,70 @@ jobs:
           name: all-mod2-firmware
           path: ./firmware-release/*.uf2
           retention-days: 90
+
+      - name: Deploy firmware to GitHub Pages (dl.modulove.io)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          # Use GH_PAT if available, otherwise use GITHUB_TOKEN
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if we have a token
+          if [ -z "$GH_TOKEN" ]; then
+            echo "⚠️ No GitHub token available for deployment"
+            exit 0
+          fi
+
+          echo "Deploying firmware files to modulove.github.io..."
+
+          # Configure git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Clone the GitHub Pages repository
+          echo "Cloning modulove.github.io repository..."
+          if ! git clone https://x-access-token:${GH_TOKEN}@github.com/modulove/modulove.github.io.git pages-repo 2>&1; then
+            echo "⚠️ Failed to clone repository. This might be a permissions issue."
+            echo "To enable deployment, create a Personal Access Token (PAT) with 'repo' scope:"
+            echo "1. Go to https://github.com/settings/tokens"
+            echo "2. Create a new token (classic) with 'repo' scope"
+            echo "3. Add it as a secret named 'GH_PAT' in this repository's settings"
+            exit 0
+          fi
+
+          # Create releases directory if it doesn't exist
+          mkdir -p pages-repo/releases
+
+          # Copy firmware files
+          echo "Copying firmware files..."
+          cp -v ./firmware-release/*.uf2 pages-repo/releases/
+
+          # Commit and push changes
+          cd pages-repo
+          git add releases/*.uf2
+
+          # Only commit if there are changes
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to deploy - firmware files are already up to date"
+          else
+            echo "Committing and pushing changes..."
+            git commit -m "Update MOD2 firmware files
+
+Deployed from: ${{ github.repository }}
+Commit: ${{ github.sha }}
+Workflow: ${{ github.run_id }}"
+
+            if git push origin main 2>&1 || git push origin master 2>&1; then
+              echo "✅ Firmware files deployed successfully to dl.modulove.io/releases/"
+              echo "Files available at:"
+              echo "  - https://dl.modulove.io/releases/MOD2_braids.uf2"
+              echo "  - https://dl.modulove.io/releases/MOD2_clap.uf2"
+              echo "  - https://dl.modulove.io/releases/MOD2_claves.uf2"
+              echo "  - https://dl.modulove.io/releases/MOD2_fm_drum.uf2"
+              echo "  - https://dl.modulove.io/releases/MOD2_hihat.uf2"
+              echo "  - https://dl.modulove.io/releases/MOD2_kick.uf2"
+              echo "  - https://dl.modulove.io/releases/MOD2_vco.uf2"
+            else
+              echo "⚠️ Failed to push changes. Check repository permissions."
+              exit 1
+            fi
+          fi
