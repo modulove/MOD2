@@ -14,11 +14,19 @@ This repository includes 7 different firmware options for the MOD2 hardware:
 6. **[KICK](Firmware/kick/README.md)** - Six-parameter kick drum synthesizer
 7. **[VCO](Firmware/vco/README.md)** - Six-waveform voltage controlled oscillator
 
-### Sample Player Firmware
+### Sample-Based Firmware (Requires Hagiwo's Patreon Content)
 
-The **[SAMPLE](Firmware/sample/README.md)** player firmware requires a `sample.h` file containing audio samples. This file is not included in the repository but is available from Hagiwo's Patreon:
+The following firmware require sample data files that are not included in this repository. These are available from Hagiwo's Patreon:
+
+#### Sample Player
+The **[SAMPLE](Firmware/sample/README.md)** player firmware supports 18 customizable sample slots.
 
 **[Download Sample Firmware from Hagiwo's Patreon](https://www.patreon.com/posts/code-for-mod2-131363551)**
+
+#### Break Beats
+The **[BREAK BEATS](Firmware/breakbeats/README.md)** firmware features the legendary "Amen Break" and "Think Break" samples.
+
+**[Download Break Beats Firmware from Hagiwo's Patreon](https://www.patreon.com/posts/code-for-mod2-133952127)**
 
 Please support the original creator!
 
