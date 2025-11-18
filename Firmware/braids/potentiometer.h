@@ -44,6 +44,11 @@ uint16_t readpot(uint8_t potnum) {
   for (int j = 0; j < POT_AVERAGING; ++j) val += (analogRead(input)); // read the A/D a few times and average for a more stable value
   val = val / POT_AVERAGING;
 
+  // Invert only POT3 (pitch pot) - potnum 2
+  if (potnum == 2) {
+    val = POT_MAX - val;  // Invert pitch pot direction
+  }
+
   if (potlock[potnum]) {
     int delta = lastpotvalue[potnum] - val; // this needs to be done outside of the abs() function - see arduino abs() docs
     if (abs(delta) > MIN_POT_CHANGE) {

@@ -243,6 +243,14 @@ void setup() {
   // init the braids voices
   initVoices();
 
+  // Force oscillator to use our default engine (initVoices sets VOWEL_FOF)
+  voices[0].pd.osc->set_shape(static_cast<braids::MacroOscillatorShape>(engine_in));
+
+  if (debug) {
+    Serial.print(F("Oscillator shape set to engine: "));
+    Serial.println(engine_in);
+  }
+
   // initial reading of the pots with debounce
   readpot(0);
   readpot(1);
@@ -311,23 +319,7 @@ void loop1() {
 
   button.update();
 
-  // Short press: increment engine
-  if (button.pressed()) {
-    engineCount++;
-    if (engineCount > 46) {
-      engineCount = 0;
-    }
-    engine_in = engineCount;
-
-    if (debug) {
-      Serial.print(F("Engine: "));
-      Serial.print(engineCount);
-      Serial.print(F(" - "));
-      Serial.println(engineNames[engineCount]);
-    }
-  }
-
-  // Long press detection (>500ms): decrement engine
+  // Check for long press first (>500ms): decrement engine
   if (button.isPressed() && button.currentDuration() > 500) {
     if (!longPressHandled) {
       engineCount--;
@@ -344,8 +336,23 @@ void loop1() {
         Serial.println(engineNames[engineCount]);
       }
     }
-  } else {
-    longPressHandled = false;  // Reset when released
+  } else if (button.released()) {
+    // Short press: increment engine (only trigger on release if it wasn't a long press)
+    if (!longPressHandled) {
+      engineCount++;
+      if (engineCount > 46) {
+        engineCount = 0;
+      }
+      engine_in = engineCount;
+
+      if (debug) {
+        Serial.print(F("Engine: "));
+        Serial.print(engineCount);
+        Serial.print(F(" - "));
+        Serial.println(engineNames[engineCount]);
+      }
+    }
+    longPressHandled = false;  // Reset flag when button is released
   }
 
   // reading A/D seems to cause noise in the audio so don't do it too often
