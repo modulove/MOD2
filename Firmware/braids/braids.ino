@@ -66,10 +66,10 @@ Bounce2::Button button = Bounce2::Button();
 
 PWMAudio DAC(PWMOUT);  // 16 bit PWM audio
 
-// Braids Renaissance engine names (56 total, 0-55)
+// Braids Renaissance engine names (57 total, 0-56)
 // Based on Braids Renaissance alternative firmware by Tom Burns
 // https://github.com/boourns/eurorack/tree/master/braids
-const char* engineNames[56] = {
+const char* engineNames[57] = {
   // Analog-style oscillators
   "CSAW",      // 0 - Classic sawtooth
   "MORPH",     // 1 - Morphing saw/square
@@ -367,7 +367,7 @@ void loop1() {
     if (!longPressHandled) {
       engineCount--;
       if (engineCount < 0) {
-        engineCount = 55;  // Renaissance: 56 engines (0-55)
+        engineCount = 56;  // Renaissance: 57 engines (0-56)
       }
       engine_in = engineCount;
       longPressHandled = true;
@@ -383,7 +383,7 @@ void loop1() {
     // Short press: increment engine (only trigger on release if it wasn't a long press)
     if (!longPressHandled) {
       engineCount++;
-      if (engineCount > 55) {  // Renaissance: 56 engines (0-55)
+      if (engineCount > 56) {  // Renaissance: 57 engines (0-56)
         engineCount = 0;
       }
       engine_in = engineCount;

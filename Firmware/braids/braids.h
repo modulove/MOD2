@@ -53,6 +53,9 @@ static long src_input_callback(void *cb_data, float **audio);
 
 struct Unit voices[1];
 
+// Global quantizer reference for Renaissance chord/stack modes
+braids::Quantizer quantizer;
+
 // Plaits modulation vars, reusing names
 int16_t morph_in = 4000; // IN(4);
 float trigger_in; //IN(5);
@@ -219,6 +222,10 @@ void initVoices() {
   voices[0].quantizer = new braids::Quantizer;
   voices[0].quantizer->Init();
   voices[0].quantizer->Configure(braids::scales[0]);
+
+  // Initialize global quantizer for Renaissance chord/stack modes
+  quantizer.Init();
+  quantizer.Configure(braids::scales[0]);
 
   //unit->jitter_source.Init();
 
