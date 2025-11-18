@@ -121,6 +121,8 @@ const char* engineNames[47] = {
 int engineCount = 0;
 int engineInc = 0;
 bool longPressHandled = false;
+bool needsEEPROMSave = false;
+uint32_t lastButtonPress = 0;
 
 // clock timer  stuff
 
@@ -331,10 +333,8 @@ void loop1() {
       engineCount = 0;
     }
     engine_in = engineCount;
-
-    // Save to EEPROM
-    EEPROM.put(0, (uint8_t)engineCount);
-    EEPROM.commit();
+    needsEEPROMSave = true;
+    lastButtonPress = now;
 
     if (debug) {
       Serial.print(F("Engine: "));
@@ -352,11 +352,8 @@ void loop1() {
         engineCount = 46;
       }
       engine_in = engineCount;
-
-      // Save to EEPROM
-      EEPROM.put(0, (uint8_t)engineCount);
-      EEPROM.commit();
-
+      needsEEPROMSave = true;
+      lastButtonPress = now;
       longPressHandled = true;
 
       if (debug) {
@@ -368,6 +365,16 @@ void loop1() {
     }
   } else {
     longPressHandled = false;  // Reset when released
+  }
+
+  // Delayed EEPROM save (wait 2 seconds after last button press to avoid blocking audio)
+  if (needsEEPROMSave && (now - lastButtonPress) > 2000) {
+    EEPROM.put(0, (uint8_t)engineCount);
+    EEPROM.commit();
+    needsEEPROMSave = false;
+    if (debug) {
+      Serial.println(F("Saved to EEPROM"));
+    }
   }
 
   // reading A/D seems to cause noise in the audio so don't do it too often
