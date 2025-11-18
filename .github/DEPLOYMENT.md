@@ -1,13 +1,13 @@
 # Deployment Configuration Guide
 
-This guide explains how to configure automatic deployment of firmware files to `dl.modulove.io` (GitHub Pages).
+This guide explains how to configure automatic deployment of firmware files to `modulove.github.io` (GitHub Pages).
 
 ## How It Works
 
 The GitHub Actions workflow automatically:
 1. Builds all 7 firmware files on every push to `main`
 2. Renames them to match the `MOD2_*.uf2` naming convention
-3. Pushes them to the `modulove.github.io` repository (which serves `dl.modulove.io` via GitHub Pages)
+3. Pushes them to the `modulove.github.io` repository (available at `https://modulove.github.io/releases/`)
 
 ## Prerequisites
 
@@ -77,9 +77,11 @@ Once configured, the deployment will automatically run on the next push to `main
    - `MOD2_kick.uf2`
    - `MOD2_vco.uf2`
 
-4. Wait a few minutes for GitHub Pages to deploy, then check:
-   - https://dl.modulove.io/releases/MOD2_clap.uf2
+4. Files are immediately available at:
+   - https://modulove.github.io/releases/MOD2_clap.uf2
    - (and other firmware files)
+
+Note: If you have a CNAME set up (like `dl.modulove.io`), files will also be available there once DNS propagates.
 
 ## GitHub Actions Artifacts Retention
 
@@ -90,10 +92,10 @@ Once configured, the deployment will automatically run on the next push to `main
 - **Free tier**: Artifacts count against your storage quota
 
 This means:
-- ✅ Firmware files on `dl.modulove.io` are **permanent** (stored in git repository)
+- ✅ Firmware files on `modulove.github.io` are **permanent** (stored in git repository)
 - ⚠️ Firmware artifacts in GitHub Actions are **temporary** (90 days)
 
-**Recommendation:** Always use the `dl.modulove.io` links for long-term access.
+**Recommendation:** Always use the `modulove.github.io` links for long-term access.
 
 ## Why Did It Break?
 
@@ -133,14 +135,15 @@ If you see "⚠️ No GitHub token available for deployment":
 
 ### GitHub Pages not updating
 
-**Symptom:** Files pushed but not appearing on `dl.modulove.io`
+**Symptom:** Files pushed but not appearing on `modulove.github.io`
 
 **Solutions:**
 1. Check GitHub Pages settings in `modulove.github.io` repository
 2. Verify GitHub Pages is enabled and pointing to correct branch
 3. Check for build errors in GitHub Pages deployment
-4. Wait 2-5 minutes for CDN cache to clear
-5. Try hard refresh: Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)
+4. Files are available immediately at `modulove.github.io`
+5. Custom domains (like `dl.modulove.io`) may take 2-5 minutes for CDN cache to clear
+6. Try hard refresh: Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)
 
 ## Advanced Configuration
 

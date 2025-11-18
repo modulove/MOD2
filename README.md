@@ -31,23 +31,21 @@ Each firmware includes detailed documentation with control mappings, features, a
 ### Method 1: Download Pre-Built Firmware (Easiest)
 
 **Option A: Direct Downloads (Recommended)**
-- Download from dl.modulove.io:
-  - [MOD2_braids.uf2](https://dl.modulove.io/releases/MOD2_braids.uf2)
-  - [MOD2_clap.uf2](https://dl.modulove.io/releases/MOD2_clap.uf2)
-  - [MOD2_claves.uf2](https://dl.modulove.io/releases/MOD2_claves.uf2)
-  - [MOD2_fm_drum.uf2](https://dl.modulove.io/releases/MOD2_fm_drum.uf2)
-  - [MOD2_hihat.uf2](https://dl.modulove.io/releases/MOD2_hihat.uf2)
-  - [MOD2_kick.uf2](https://dl.modulove.io/releases/MOD2_kick.uf2)
-  - [MOD2_vco.uf2](https://dl.modulove.io/releases/MOD2_vco.uf2)
+- Download pre-built firmware:
+  - [MOD2_braids.uf2](https://modulove.github.io/releases/MOD2_braids.uf2)
+  - [MOD2_clap.uf2](https://modulove.github.io/releases/MOD2_clap.uf2)
+  - [MOD2_claves.uf2](https://modulove.github.io/releases/MOD2_claves.uf2)
+  - [MOD2_fm_drum.uf2](https://modulove.github.io/releases/MOD2_fm_drum.uf2)
+  - [MOD2_hihat.uf2](https://modulove.github.io/releases/MOD2_hihat.uf2)
+  - [MOD2_kick.uf2](https://modulove.github.io/releases/MOD2_kick.uf2)
+  - [MOD2_vco.uf2](https://modulove.github.io/releases/MOD2_vco.uf2)
 
 **Option B: GitHub Artifacts**
 1. Go to the [Actions](https://github.com/modulove/MOD2/actions) tab
 2. Click on the latest successful workflow run
 3. Scroll down to "Artifacts"
-4. Download either:
-   - `all-mod2-firmware` - Contains all 7 firmware files
-   - Individual firmware (e.g., `braids-firmware`, `kick-firmware`, etc.)
-5. Extract the .uf2 file(s)
+4. Download individual firmware (e.g., `braids-firmware`, `kick-firmware`, etc.)
+5. Extract the .uf2 file
 
 ### Method 2: Download from Releases
 

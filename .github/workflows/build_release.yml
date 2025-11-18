@@ -123,14 +123,7 @@ jobs:
           done
           ls -lh ./firmware-release/
 
-      - name: Upload combined firmware artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: all-mod2-firmware
-          path: ./firmware-release/*.uf2
-          retention-days: 90
-
-      - name: Deploy firmware to GitHub Pages (dl.modulove.io)
+      - name: Deploy firmware to GitHub Pages (modulove.github.io)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           # Use GH_PAT if available, otherwise use GITHUB_TOKEN
@@ -178,15 +171,15 @@ jobs:
             git commit -m "Update MOD2 firmware files" -m "Deployed from: ${{ github.repository }}" -m "Commit: ${{ github.sha }}" -m "Workflow: ${{ github.run_id }}"
 
             if git push origin main 2>&1 || git push origin master 2>&1; then
-              echo "✅ Firmware files deployed successfully to dl.modulove.io/releases/"
+              echo "✅ Firmware files deployed successfully to modulove.github.io/releases/"
               echo "Files available at:"
-              echo "  - https://dl.modulove.io/releases/MOD2_braids.uf2"
-              echo "  - https://dl.modulove.io/releases/MOD2_clap.uf2"
-              echo "  - https://dl.modulove.io/releases/MOD2_claves.uf2"
-              echo "  - https://dl.modulove.io/releases/MOD2_fm_drum.uf2"
-              echo "  - https://dl.modulove.io/releases/MOD2_hihat.uf2"
-              echo "  - https://dl.modulove.io/releases/MOD2_kick.uf2"
-              echo "  - https://dl.modulove.io/releases/MOD2_vco.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_braids.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_clap.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_claves.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_fm_drum.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_hihat.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_kick.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_vco.uf2"
             else
               echo "⚠️ Failed to push changes. Check repository permissions."
               exit 1
