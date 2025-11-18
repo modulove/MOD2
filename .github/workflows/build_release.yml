@@ -175,11 +175,7 @@ jobs:
             echo "No changes to deploy - firmware files are already up to date"
           else
             echo "Committing and pushing changes..."
-            git commit -m "Update MOD2 firmware files
-
-Deployed from: ${{ github.repository }}
-Commit: ${{ github.sha }}
-Workflow: ${{ github.run_id }}"
+            git commit -m "Update MOD2 firmware files" -m "Deployed from: ${{ github.repository }}" -m "Commit: ${{ github.sha }}" -m "Workflow: ${{ github.run_id }}"
 
             if git push origin main 2>&1 || git push origin master 2>&1; then
               echo "✅ Firmware files deployed successfully to dl.modulove.io/releases/"
