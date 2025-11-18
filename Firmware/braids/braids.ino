@@ -369,9 +369,22 @@ void loop1() {
 
   // Delayed EEPROM save (wait 2 seconds after last button press to avoid blocking audio)
   if (needsEEPROMSave && (now - lastButtonPress) > 2000) {
+    // Mute audio during EEPROM save to prevent artifacts
+    bool dacWasRunning = false;
+    if (DAC.running()) {
+      DAC.end();
+      dacWasRunning = true;
+    }
+
     EEPROM.put(0, (uint8_t)engineCount);
     EEPROM.commit();
     needsEEPROMSave = false;
+
+    // Resume audio
+    if (dacWasRunning) {
+      DAC.begin();
+    }
+
     if (debug) {
       Serial.println(F("Saved to EEPROM"));
     }
