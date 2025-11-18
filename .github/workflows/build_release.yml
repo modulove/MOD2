@@ -66,10 +66,10 @@ jobs:
             exit 1
           fi
 
-          # Compile for RP2350 (Raspberry Pi Pico 2)
-          # Board: Raspberry Pi Pico 2 (rp2350)
+          # Compile for RP2350 (Seeeduino XIAO RP2350)
+          # Board: Seeeduino XIAO RP2350
           # Compile the specific .ino file
-          arduino-cli compile -v -b rp2040:rp2040:rpipico2 "${SKETCH_FILE}" -e --output-dir=./build
+          arduino-cli compile -v -b rp2040:rp2040:seeed_xiao_rp2350 "${SKETCH_FILE}" -e --output-dir=./build
 
           # Create release directory
           mkdir -p ./release

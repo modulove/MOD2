@@ -92,14 +92,14 @@ git clone https://github.com/poetaster/arduinoMI.git
 ### Compile and Upload
 
 ```bash
-arduino-cli compile -b rp2040:rp2040:rpipico2 Firmware/<firmware-name>/<firmware-name>.ino
-arduino-cli upload -b rp2040:rp2040:rpipico2 -p <port> Firmware/<firmware-name>/<firmware-name>.ino
+arduino-cli compile -b rp2040:rp2040:seeed_xiao_rp2350 Firmware/<firmware-name>/<firmware-name>.ino
+arduino-cli upload -b rp2040:rp2040:seeed_xiao_rp2350 -p <port> Firmware/<firmware-name>/<firmware-name>.ino
 ```
 
 ## Hardware
 
 This firmware is designed for Hagiwo's MOD2 hardware module:
-- Based on Raspberry Pi RP2040 or RP2350 (Pico 2)
+- Based on Seeeduino XIAO RP2350
 - Three potentiometers (CV inputs)
 - Audio output via PWM
 - Trigger/gate inputs
