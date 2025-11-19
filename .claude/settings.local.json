@@ -14,7 +14,10 @@
       "Bash(done)",
       "Bash(git checkout:*)",
       "Bash(find:*)",
-      "Bash(hugo:*)"
+      "Bash(hugo:*)",
+      "Bash(arduino-cli compile:*)",
+      "Bash(arduino-cli core:*)",
+      "Bash(arduino-cli board:*)"
     ],
     "deny": [],
     "ask": []
