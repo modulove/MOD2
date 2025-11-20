@@ -5,7 +5,9 @@
 **Update**: These changes have been committed to your arduinoMI fork on the `renaissance` branch:
 - Repository: https://github.com/modulove/arduinoMI
 - Branch: `renaissance`
-- Commit: ca2f333
+- Commits:
+  - ca2f333 - Add Renaissance firmware support to BRAIDS library
+  - 3e06a53 - Fix BRAIDS.h includes and wire Renaissance render functions
 
 ## Installation Instructions
 
