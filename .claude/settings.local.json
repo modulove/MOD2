@@ -14,7 +14,8 @@
       "Bash(done)",
       "Bash(git checkout:*)",
       "Bash(find:*)",
-      "Bash(hugo:*)"
+      "Bash(hugo:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []
