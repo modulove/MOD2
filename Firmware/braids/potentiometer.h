@@ -14,7 +14,7 @@
 #define POT_MIN 0   // A/D may not read min value of 0 so use a bit larger value for map() function
 #define POT_MAX 4096 // A/D may not read max value of 1023 so use a bit smaller value for map() function
 
-#define NPOTS 4 // number of pots
+#define NPOTS 3 // number of pots
 
 uint16_t potvalue[NPOTS]; // pot readings
 uint16_t lastpotvalue[NPOTS]; // old pot readings
