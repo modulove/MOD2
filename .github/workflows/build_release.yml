@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [spiral, flux, kick, clap, claves, fm_drum, hihat, vco, braids, square_vco]
+        firmware: [tides, spiral, flux, kick, clap, claves, fm_drum, hihat, vco, braids, square_vco]
 
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
           # Install RP2040/RP2350 board support
           arduino-cli core install rp2040:rp2040 --additional-urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
 
-      - name: Install BRAIDS and STMLIB libraries for braids firmware
+      - name: Install BRAIDS, (RINGS, CLOUDS, ELEMENTS) and STMLIB libraries for braids firmware
         if: matrix.firmware == 'braids'
         run: |
           # Clone the arduinoMI repository to get BRAIDS and STMLIB libraries
@@ -55,6 +55,9 @@ jobs:
           # Copy BRAIDS and STMLIB to Arduino libraries directory
           cp -r /tmp/arduinoMI/BRAIDS "$ARDUINO_LIB_DIR/"
           cp -r /tmp/arduinoMI/STMLIB "$ARDUINO_LIB_DIR/"
+          #cp -r /tmp/arduinoMI/CLOUDS "$ARDUINO_LIB_DIR/"
+          #cp -r /tmp/arduinoMI/RINGS "$ARDUINO_LIB_DIR/"
+          #cp -r /tmp/arduinoMI/ELEMENTS "$ARDUINO_LIB_DIR/"
 
           # Install required Arduino libraries with retry logic
           for lib in "Bounce2" "RPI_PICO_TimerInterrupt"; do
@@ -72,6 +75,38 @@ jobs:
           # PWMAudio is included in the rp2040:rp2040 core, no separate installation needed
 
           echo "Installed BRAIDS, STMLIB, Bounce2, and RPI_PICO_TimerInterrupt libraries"
+          ls -la "$ARDUINO_LIB_DIR"
+
+      - name: Install TIDES and STMLIB libraries for tides firmware
+        if: matrix.firmware == 'tides'
+        run: |
+          # Clone the arduinoMI repository to get TIDES and STMLIB libraries
+          git clone https://github.com/poetaster/arduinoMI.git /tmp/arduinoMI
+
+          # Get Arduino libraries directory
+          ARDUINO_LIB_DIR=$(arduino-cli config dump | grep "user:" | cut -d: -f2 | xargs)/libraries
+          mkdir -p "$ARDUINO_LIB_DIR"
+
+          # Copy TIDES and STMLIB to Arduino libraries directory
+          cp -r /tmp/arduinoMI/TIDES "$ARDUINO_LIB_DIR/"
+          cp -r /tmp/arduinoMI/STMLIB "$ARDUINO_LIB_DIR/"
+
+          # Install required Arduino libraries with retry logic
+          for lib in "Bounce2" "RPI_PICO_TimerInterrupt"; do
+            for i in {1..3}; do
+              echo "Attempt $i: Installing $lib..."
+              if arduino-cli lib install "$lib"; then
+                echo "✅ $lib installed successfully"
+                break
+              else
+                echo "⚠️ Attempt $i failed, retrying in 5 seconds..."
+                sleep 5
+              fi
+            done
+          done
+          # PWMAudio is included in the rp2040:rp2040 core, no separate installation needed
+
+          echo "Installed TIDES, STMLIB, Bounce2, and RPI_PICO_TimerInterrupt libraries"
           ls -la "$ARDUINO_LIB_DIR"
 
       - name: Compile firmware for ${{ matrix.firmware }}

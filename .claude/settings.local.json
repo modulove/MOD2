@@ -16,7 +16,11 @@
       "Bash(find:*)",
       "Bash(hugo:*)",
       "Bash(git fetch:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(dir /s /b 'm:\\Meine Ablage\\11_Code\\Github_Clones_vscode')",
+      "Bash(findstr:*)",
+      "Bash(python3 -c:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
