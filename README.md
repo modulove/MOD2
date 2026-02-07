@@ -13,6 +13,7 @@ This repository includes 7 different firmware options for the MOD2 hardware:
 5. **[HIHAT](Firmware/hihat/README.md)** - Blue/white noise hi-hat synthesizer
 6. **[KICK](Firmware/kick/README.md)** - Six-parameter kick drum synthesizer
 7. **[VCO](Firmware/vco/README.md)** - Six-waveform voltage controlled oscillator
+8. **[RADIO](Firmware/radio/README.md)** - Radio music style sample player
 
 ### Sample-Based Firmware (Requires Hagiwo's Patreon Content)
 
@@ -47,6 +48,7 @@ Each firmware includes detailed documentation with control mappings, features, a
   - [MOD2_hihat.uf2](https://modulove.github.io/releases/MOD2_hihat.uf2)
   - [MOD2_kick.uf2](https://modulove.github.io/releases/MOD2_kick.uf2)
   - [MOD2_vco.uf2](https://modulove.github.io/releases/MOD2_vco.uf2)
+  - [MOD2_radio.uf2](https://modulove.github.io/releases/MOD2_radio.uf2)
 
 **Option B: GitHub Artifacts**
 1. Go to the [Actions](https://github.com/modulove/MOD2/actions) tab
