@@ -14,6 +14,7 @@ This repository includes 7 different firmware options for the MOD2 hardware:
 6. **[KICK](Firmware/kick/README.md)** - Six-parameter kick drum synthesizer
 7. **[VCO](Firmware/vco/README.md)** - Six-waveform voltage controlled oscillator
 8. **[RADIO](Firmware/radio/README.md)** - Radio music style sample player
+9. **[MOD303](Firmware/mod303/README.md)** - 303-ish bass voice + generative sequencer
 
 ### Sample-Based Firmware (Requires Hagiwo's Patreon Content)
 
