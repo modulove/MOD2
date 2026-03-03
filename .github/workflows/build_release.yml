@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [spiral, flux, kick, clap, claves, fm_drum, hihat, vco, square_vco, radio]
+        firmware: [mod303, spiral, flux, kick, clap, claves, fm_drum, hihat, vco, square_vco, radio]
 
     steps:
       - uses: actions/checkout@v4
@@ -229,12 +229,16 @@ jobs:
               echo "✅ Firmware files deployed successfully to modulove.github.io/releases/"
               echo "Files available at:"
               echo "  - https://modulove.github.io/releases/MOD2_braids.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_tides.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_flux.uf2"
               echo "  - https://modulove.github.io/releases/MOD2_clap.uf2"
               echo "  - https://modulove.github.io/releases/MOD2_claves.uf2"
               echo "  - https://modulove.github.io/releases/MOD2_fm_drum.uf2"
               echo "  - https://modulove.github.io/releases/MOD2_hihat.uf2"
               echo "  - https://modulove.github.io/releases/MOD2_kick.uf2"
               echo "  - https://modulove.github.io/releases/MOD2_vco.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_radio.uf2"
+              echo "  - https://modulove.github.io/releases/MOD2_mod303.uf2"
             else
               echo "⚠️ Failed to push changes. Check repository permissions."
               exit 1
