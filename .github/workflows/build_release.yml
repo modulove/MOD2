@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [mod303, spiral, flux, kick, clap, claves, fm_drum, hihat, vco, square_vco, radio]
+        firmware: [mod303, spiral, flux, kick, clap, claves, fm_drum, hihat, vco, square_vco, radio, braids]
 
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +46,8 @@ jobs:
         if: matrix.firmware == 'braids'
         run: |
           # Clone the arduinoMI repository to get BRAIDS and STMLIB libraries
-          git clone https://github.com/poetaster/arduinoMI.git /tmp/arduinoMI
+          #git clone https://github.com/poetaster/arduinoMI.git /tmp/arduinoMI
+          git clone https://github.com/modulove/arduinoMI.git /tmp/arduinoMI
 
           # Get Arduino libraries directory
           ARDUINO_LIB_DIR=$(arduino-cli config dump | grep "user:" | cut -d: -f2 | xargs)/libraries
@@ -81,7 +82,7 @@ jobs:
         if: matrix.firmware == 'tides'
         run: |
           # Clone the arduinoMI repository to get TIDES and STMLIB libraries
-          git clone https://github.com/poetaster/arduinoMI.git /tmp/arduinoMI
+          git clone https://github.com/modulove/arduinoMI.git /tmp/arduinoMI
 
           # Get Arduino libraries directory
           ARDUINO_LIB_DIR=$(arduino-cli config dump | grep "user:" | cut -d: -f2 | xargs)/libraries
