@@ -216,6 +216,8 @@ void setup() {
   // --- restore parameters from flash --------------------------------------
   EEPROM.begin(64);
 
+  float temp;
+
   EEPROM.get(0, temp);
   if (!isnan(temp) && temp >= 30.0f && temp <= 1200.0f) paramData.pitch.value = temp;
   f0 = paramData.pitch.value;
