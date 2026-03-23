@@ -25,7 +25,7 @@ CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
 You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission.
 
 [History]
-v1.3 - Fix: Validate EEPROM parameter reads
+v1.3  -  Fix: Validate EEPROM parameter reads
 v1.2  - Add: Pickup feature for smooth parameter transitions
 v1.1  - Fix: EEPROM-related malfunction
 v1.0  - Init: Initial release
