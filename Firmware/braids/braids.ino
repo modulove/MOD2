@@ -355,20 +355,20 @@ void loop1() {
     longPressHandled = false;  // Reset flag when button is released
   }
 
+  // read trigger in
+  if (digitalRead(TRIG_PIN) ) {
+    trigger_in = 1.0f;
+    digitalWrite(LED, HIGH);  // Turn LED on when trigger received
+  } else {
+    trigger_in = 0.0f;
+    digitalWrite(LED, LOW);   // Turn LED off when no trigger
+  }
   // reading A/D seems to cause noise in the audio so don't do it too often
-
 
   if ((now - pot_timer) > POT_SAMPLE_TIME) {
     readpot(0);
     readpot(1);
     readpot(2);
-    if (digitalRead(TRIG_PIN) ) {
-      trigger_in = 1.0f;
-      digitalWrite(LED, HIGH);  // Turn LED on when trigger received
-    } else {
-      trigger_in = 0.0f;
-      digitalWrite(LED, LOW);   // Turn LED off when no trigger
-    }
     pot_timer = now;
   }
 
