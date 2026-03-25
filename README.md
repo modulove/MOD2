@@ -88,8 +88,12 @@ arduino-cli lib install Bounce2
 arduino-cli lib install "RPI_PICO_TimerInterrupt"
 
 # Clone BRAIDS and STMLIB libraries
-git clone https://github.com/poetaster/arduinoMI.git
-# Copy to Arduino libraries folder
+
+# change to Arduino libray folder
+cd ~/Arduino/libraries
+git clone https://github.com/poetaster/STMLIB.git
+git clone https://github.com/poetaster/BRAIDS.git
+
 ```
 
 ### Compile and Upload
