@@ -12,7 +12,7 @@ HAGIWO MOD2 FM Drum Ver1.2 - WITH PICKUP FEATURE
 --Pin assign---
 POT1     A0       Mode0: Pitch               | Mode1: Decay Time
 POT2     A1       Mode0: Operator Ratio      | Mode1: Ratio Envelope
-POT3     A2       Mode0: Modulation Index    | Mode1: Modulation Index 
+POT3     A2       Mode0: Modulation Index    | Mode1: Modulation Index
 IN1      GPIO7    Trig in
 IN2      GPIO0    Accent  – level × 0.5 when HIGH
 CV       A2       Shared with POT3
@@ -25,6 +25,7 @@ CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
 You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission.
 
 [History]
+v1.3  -  Fix: Validate EEPROM parameter reads
 v1.2  - Add: Pickup feature for smooth parameter transitions
 v1.1  - Fix: EEPROM-related malfunction
 v1.0  - Init: Initial release
@@ -152,7 +153,7 @@ void make_wavetable() {
 float readPotSmoothed(int pin, float* buffer) {
   // Read and store in circular buffer
   buffer[potBufferIndex] = analogRead(pin) / 1023.0f;
-  
+
   // Calculate average
   float sum = 0;
   for (int i = 0; i < POT_SMOOTH_SAMPLES; i++) {
@@ -166,22 +167,22 @@ bool checkPickup(ParameterData* param, float currentPotValue) {
   if (!param->pickupActive) {
     return true;  // No pickup needed
   }
-  
+
   // Calculate normalized target position (0-1)
   float normalizedTarget = param->targetValue;
-  
+
   // Check if pot has crossed the target value
-  bool crossedFromBelow = (param->lastPotValue < normalizedTarget - PICKUP_THRESHOLD) && 
+  bool crossedFromBelow = (param->lastPotValue < normalizedTarget - PICKUP_THRESHOLD) &&
                           (currentPotValue >= normalizedTarget - PICKUP_THRESHOLD);
-  bool crossedFromAbove = (param->lastPotValue > normalizedTarget + PICKUP_THRESHOLD) && 
+  bool crossedFromAbove = (param->lastPotValue > normalizedTarget + PICKUP_THRESHOLD) &&
                           (currentPotValue <= normalizedTarget + PICKUP_THRESHOLD);
-  
-  if (crossedFromBelow || crossedFromAbove || 
+
+  if (crossedFromBelow || crossedFromAbove ||
       fabs(currentPotValue - normalizedTarget) < PICKUP_THRESHOLD) {
     param->pickupActive = false;  // Pickup complete
     return true;
   }
-  
+
   param->lastPotValue = currentPotValue;
   return false;  // Still waiting for pickup
 }
@@ -191,19 +192,19 @@ void initParameterData() {
   // Initialize all parameters with default values
   paramData.pitch.value = 200.0f;
   paramData.pitch.pickupActive = false;
-  
+
   paramData.operatorRatio.value = 2.0f;
   paramData.operatorRatio.pickupActive = false;
-  
+
   paramData.modIndexM0.value = 1.0f;
   paramData.modIndexM0.pickupActive = false;
-  
+
   paramData.decayTime.value = 5.0f;
   paramData.decayTime.pickupActive = false;
-  
+
   paramData.ratioEnvelope.value = 0.0f;
   paramData.ratioEnvelope.pickupActive = false;
-  
+
   paramData.modIndexM1.value = 1.0f;
   paramData.modIndexM1.pickupActive = false;
 }
@@ -212,29 +213,33 @@ void initParameterData() {
 void setup() {
   // Initialize parameter data
   initParameterData();
-  
+
   // --- restore parameters from flash --------------------------------------
   EEPROM.begin(64);
 
-  // Load saved values
-  EEPROM.get(0, paramData.pitch.value);
+  float temp;
+
+  EEPROM.get(0, temp);
+  if (!isnan(temp) && temp >= 30.0f && temp <= 1200.0f) paramData.pitch.value = temp;
   f0 = paramData.pitch.value;
-  
-  EEPROM.get(4, paramData.operatorRatio.value);
+
+  EEPROM.get(4, temp);
+  if (!isnan(temp) && temp >= 0.5f && temp <= 8.0f) paramData.operatorRatio.value = temp;
   opRatio = paramData.operatorRatio.value;
-  
-  EEPROM.get(8, paramData.modIndexM0.value);
-  paramData.modIndexM1.value = paramData.modIndexM0.value;  // Both modes share modIndex
-  modIndex = paramData.modIndexM0.value;
-  if (modIndex < 1.0f) {
-    modIndex = 1.0f;
-  }
+
+  EEPROM.get(8, temp);
+  if (!isnan(temp) && temp >= 1.0f && temp <= 10.0f) paramData.modIndexM0.value = temp;
+  paramData.modIndexM1.value = paramData.modIndexM0.value;
+  modIndex  = paramData.modIndexM0.value;
+  if (modIndex < 1.0f) modIndex = 1.0f;
   softClipK = modIndex;
-  
-  EEPROM.get(12, paramData.decayTime.value);
+
+  EEPROM.get(12, temp);
+  if (!isnan(temp) && temp >= 0.5f && temp <= 10.0f) paramData.decayTime.value = temp;
   decayRate = paramData.decayTime.value;
-  
-  EEPROM.get(16, paramData.ratioEnvelope.value);
+
+  EEPROM.get(16, temp);
+  if (!isnan(temp) && temp >= 0.0f && temp <= 1.0f) paramData.ratioEnvelope.value = temp;
   ratioEnv = paramData.ratioEnvelope.value;
 
   make_wavetable();
@@ -312,7 +317,7 @@ void setup() {
       irq_set_enabled(PWM_IRQ_WRAP, true);  // resume audio ISR
     },
     RISING);
-  
+
   // Initialize pot buffers with current readings
   for (int i = 0; i < POT_SMOOTH_SAMPLES; i++) {
     pot1Buffer[i] = analogRead(A0) / 1023.0f;
@@ -341,7 +346,7 @@ void loop() {
       paramData.ratioEnvelope.value = ratioEnv;
       paramData.modIndexM1.value = modIndex;
     }
-    
+
     editMode = !editMode;       // toggle mode
     digitalWrite(5, editMode);  // LED reflects current mode
 
@@ -351,20 +356,20 @@ void loop() {
       // Normalize target values to 0-1 range for pot comparison
       paramData.pitch.targetValue = (paramData.pitch.value - 30.0f) / 1170.0f;
       paramData.pitch.pickupActive = true;
-      
+
       paramData.operatorRatio.targetValue = (paramData.operatorRatio.value - 0.5f) / 7.5f;
       paramData.operatorRatio.pickupActive = true;
-      
+
       paramData.modIndexM0.targetValue = 1.0f - ((paramData.modIndexM0.value - 1.0f) / 9.0f);
       paramData.modIndexM0.pickupActive = true;
     } else {
       // Entering Mode 1
       paramData.decayTime.targetValue = 1.0f - ((paramData.decayTime.value - 0.5f) / 9.5f);
       paramData.decayTime.pickupActive = true;
-      
+
       paramData.ratioEnvelope.targetValue = 1.0f - paramData.ratioEnvelope.value;
       paramData.ratioEnvelope.pickupActive = true;
-      
+
       paramData.modIndexM1.targetValue = 1.0f - ((paramData.modIndexM1.value - 1.0f) / 9.0f);
       paramData.modIndexM1.pickupActive = true;
     }
