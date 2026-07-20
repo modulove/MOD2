@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        firmware: [mod303, spiral, flux, kick, clap, claves, fm_drum, hihat, vco, square_vco, radio, braids]
+        firmware: [mod303, spiral, flux, kick, clap, claves, fm_drum, hihat, vco, square_vco, radio, braids, metal, laser, snare]
 
     steps:
       - uses: actions/checkout@v4
